@@ -1,33 +1,16 @@
-import torch
+import mindspore as ms
+import mindspore.ops as ops
+from torchsparse.nn.cuda.others import SPHashQuery
 
-import torchsparse.backend
+def sphashquery(queries: ms.Tensor,
+                references: ms.Tensor) -> ms.Tensor:
 
-__all__ = ['sphashquery']
-
-
-def sphashquery(queries: torch.Tensor,
-                references: torch.Tensor) -> torch.Tensor:
-    queries = queries.contiguous()
-    references = references.contiguous()
-
-    sizes = queries.size()
+    sizes = queries.shape
     queries = queries.view(-1)
 
-    indices = torch.arange(len(references),
-                           device=queries.device,
-                           dtype=torch.long)
+    indices = ops.arange(start=0, stop=len(references), rtype=ms.int64)
 
-    if queries.device.type == 'cuda':
-        output = torchsparse.backend.hash_query_cuda(queries, references,
-                                                     indices)
-    elif queries.device.type == 'cpu':
-        output = torchsparse.backend.hash_query_cpu(queries, references,
-                                                    indices)
-    else:
-        device = queries.device
-        output = torchsparse.backend.hash_query_cpu(queries.cpu(),
-                                                    references.cpu(),
-                                                    indices.cpu()).to(device)
+    output = SPHashQuery()(queries, references, indices)
 
-    output = (output - 1).view(*sizes)
+    output = (output - 1).view(sizes)
     return output

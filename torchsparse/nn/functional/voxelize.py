@@ -1,56 +1,42 @@
-import torch
-from torch.autograd import Function
-from torch.cuda.amp import custom_bwd, custom_fwd
+from typing import Optional, Tuple, Union
+import mindspore.nn as nn
+import mindspore.ops as ops
+from mindspore import Tensor
 
-import torchsparse.backend
+from torchsparse.nn.cuda.voxelize import SPVoxelize
 
 __all__ = ['spvoxelize']
 
 
-class VoxelizeFunction(Function):
+class VoxelizeFunction(nn.Cell):
+    def __init__(self):
+        super(VoxelizeFunction, self).__init__()
+        self.sp_voxelize = SPVoxelize()
 
-    @staticmethod
-    @custom_fwd(cast_inputs=torch.half)
-    def forward(ctx, feats: torch.Tensor, coords: torch.Tensor,
-                counts: torch.Tensor) -> torch.Tensor:
-        feats = feats.contiguous()
-        coords = coords.contiguous().int()
+    def construct(self,
+                  feats: Tensor,
+                  coords: Tensor,
+                  counts: Tensor) -> Tensor:
 
-        if feats.device.type == 'cuda':
-            output = torchsparse.backend.voxelize_forward_cuda(
-                feats, coords, counts)
-        elif feats.device.type == 'cpu':
-            output = torchsparse.backend.voxelize_forward_cpu(
-                feats, coords, counts)
-        else:
-            device = feats.device
-            output = torchsparse.backend.voxelize_forward_cpu(
-                feats.cpu(), coords.cpu(), counts.cpu()).to(device)
+        output = self.sp_voxelize(coords, counts, feats.shape[0])
 
-        ctx.for_backwards = (coords, counts, feats.shape[0])
         return output
 
-    @staticmethod
-    @custom_bwd
-    def backward(ctx, grad_output: torch.Tensor):
-        coords, counts, input_size = ctx.for_backwards
-        grad_output = grad_output.contiguous()
+    # def bprop(self, input, weight, nbmaps, nbsizes, sizes, transposed,
+    #             output, grad_output):
 
-        if grad_output.device.type == 'cuda':
-            grad_feats = torchsparse.backend.voxelize_backward_cuda(
-                grad_output, coords, counts, input_size)
-        elif grad_output.device.type == 'cpu':
-            grad_feats = torchsparse.backend.voxelize_backward_cpu(
-                grad_output, coords, counts, input_size)
-        else:
-            device = grad_output.device
-            grad_feats = torchsparse.backend.voxelize_backward_cpu(
-                grad_output.cpu(), coords.cpu(), counts.cpu(),
-                input_size).to(device)
+    #     grad_input = ops.ZerosLike(input)
+    #     grad_weight = ops.ZerosLike(weight)
 
-        return grad_feats, None, None
+    #     if grad_output.device.type == 'cuda':
+    #         grad_input, grad_weight = self.sp_conv(
+    #             input, grad_input, grad_output.contiguous(), weight,
+    #             grad_weight, nbmaps, nbsizes.cpu(), transposed)
+    #     else:
+    #         raise NotImplementedError
+    #     return grad_input, grad_weight, None, None, None, None
 
 
-def spvoxelize(feats: torch.Tensor, coords: torch.Tensor,
-               counts: torch.Tensor) -> torch.Tensor:
+def spvoxelize(feats: Tensor, coords: Tensor,
+               counts: Tensor) -> Tensor:
     return VoxelizeFunction.apply(feats, coords, counts)
