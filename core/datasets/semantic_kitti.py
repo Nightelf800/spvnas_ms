@@ -196,16 +196,17 @@ class SemanticKITTIInternal:
         # return (lidar, labels, labels_, inverse_map, self.files[index])
 
     @staticmethod
-    def collate_fn(pc, feat, labels, pc_, labels_, inverse_map, file_name, num_pts):
+    def collate_fn(pc, feat, labels, pc_, labels_, inverse_map, file_name, num_vox, num_pts):
 
         batch = []
         batch_size = len(pc)
         print('batch size: ', batch_size)
         for i in range(batch_size):
+            nv = num_vox[i]
             n = num_pts[i]
             input_dict = {
-                'lidar': SparseTensor(feat[i], pc[i]),
-                'targets': SparseTensor(labels[i], pc[i]),
+                'lidar': SparseTensor(feat[i][:nv, :], pc[i][:nv, :]),
+                'targets': SparseTensor(labels[i][:nv], pc[i][:nv, :]),
                 'targets_mapped': SparseTensor(labels_[i][:n], pc_[i][:n, :]),
                 'inverse_map': SparseTensor(inverse_map[i][:n], pc_[i][:n, :]),
                 'file_name': str(file_name[i])
@@ -232,7 +233,7 @@ class SemanticKITTIInternal:
                 padded_data[i][:d.shape[0]] = d
             return padded_data
 
-        # num_vox = [d.shape[0] for d in pc]
+        num_vox = [d.shape[0] for d in pc]
         num_pts = [d.shape[0] for d in pc_]
 
-        return (pc, feat, labels, _pad(pc_), _pad(labels_), _pad(inverse_map), file_name, num_pts)
+        return (_pad(pc), _pad(feat), _pad(labels), _pad(pc_), _pad(labels_), _pad(inverse_map), file_name, num_vox, num_pts)

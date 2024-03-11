@@ -1,18 +1,19 @@
 from typing import Callable
 from core.utils.config import configs
+import mindspore as ms
+import mindspore.nn as nn
 # import torch
 # import torch.optim
 # from torch import nn
 # from torchpack.utils.config import configs
 # from torchpack.utils.typing import Dataset, Optimizer, Scheduler
-import mindspore.dataset as ds
 
 # __all__ = [
 #     'make_dataset', 'make_model', 'make_criterion', 'make_optimizer',
 #     'make_scheduler'
 # ]
 __all__ = [
-    'make_dataset',
+    'make_dataset', 'make_criterion',
 ]
 
 def make_dataset():
@@ -49,54 +50,54 @@ def make_dataset():
 #     return model
 #
 #
-# def make_criterion():
-#     if configs.criterion.name == 'cross_entropy':
-#         criterion = nn.CrossEntropyLoss(
-#             ignore_index=configs.criterion.ignore_index)
-#     else:
-#         raise NotImplementedError(configs.criterion.name)
-#     return criterion
-#
-#
-# def make_optimizer(model):
-#     if configs.optimizer.name == 'sgd':
-#         optimizer = torch.optim.SGD(model.parameters(),
-#                                     lr=configs.optimizer.lr,
-#                                     momentum=configs.optimizer.momentum,
-#                                     weight_decay=configs.optimizer.weight_decay,
-#                                     nesterov=configs.optimizer.nesterov)
-#     elif configs.optimizer.name == 'adam':
-#         optimizer = torch.optim.Adam(
-#             model.parameters(),
-#             lr=configs.optimizer.lr,
-#             weight_decay=configs.optimizer.weight_decay)
-#     elif configs.optimizer.name == 'adamw':
-#         optimizer = torch.optim.AdamW(
-#             model.parameters(),
-#             lr=configs.optimizer.lr,
-#             weight_decay=configs.optimizer.weight_decay)
-#     else:
-#         raise NotImplementedError(configs.optimizer.name)
-#     return optimizer
-#
-#
-# def make_scheduler(optimizer: Optimizer) -> Scheduler:
-#     if configs.scheduler.name == 'none':
-#         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-#                                                       lr_lambda=lambda epoch: 1)
-#     elif configs.scheduler.name == 'cosine':
-#         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-#             optimizer, T_max=configs.num_epochs)
-#     elif configs.scheduler.name == 'cosine_warmup':
-#         from functools import partial
-#
-#         from core.schedulers import cosine_schedule_with_warmup
-#         scheduler = torch.optim.lr_scheduler.LambdaLR(
-#             optimizer,
-#             lr_lambda=partial(cosine_schedule_with_warmup,
-#                               num_epochs=configs.num_epochs,
-#                               batch_size=configs.batch_size,
-#                               dataset_size=configs.data.training_size))
-#     else:
-#         raise NotImplementedError(configs.scheduler.name)
-#     return scheduler
+def make_criterion():
+    if configs.criterion.name == 'cross_entropy':
+        from criterions import CrossEntropyLossWithIgnored
+        criterion = CrossEntropyLossWithIgnored(
+            reduction='mean', ignore_index=configs.criterion.ignore_index
+        )
+    else:
+        raise NotImplementedError(configs.criterion.name)
+    return criterion
+
+def make_optimizer(model):
+    if configs.optimizer.name == 'sgd':
+        optimizer = nn.SGD(model.parameters(),
+                           learning_rate=configs.optimizer.lr,
+                           momentum=configs.optimizer.momentum,
+                           weight_decay=configs.optimizer.weight_decay,
+                           nesterov=configs.optimizer.nesterov)
+    # elif configs.optimizer.name == 'adam':
+    #     optimizer = torch.optim.Adam(
+    #         model.parameters(),
+    #         lr=configs.optimizer.lr,
+    #         weight_decay=configs.optimizer.weight_decay)
+    # elif configs.optimizer.name == 'adamw':
+    #     optimizer = torch.optim.AdamW(
+    #         model.parameters(),
+    #         lr=configs.optimizer.lr,
+    #         weight_decay=configs.optimizer.weight_decay)
+    else:
+        raise NotImplementedError(configs.optimizer.name)
+    return optimizer
+
+def make_scheduler(optimizer: Optimizer) -> Scheduler:
+    if configs.scheduler.name == 'none':
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+                                                      lr_lambda=lambda epoch: 1)
+    elif configs.scheduler.name == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=configs.num_epochs)
+    elif configs.scheduler.name == 'cosine_warmup':
+        from functools import partial
+
+        from core.schedulers import cosine_schedule_with_warmup
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            lr_lambda=partial(cosine_schedule_with_warmup,
+                              num_epochs=configs.num_epochs,
+                              batch_size=configs.batch_size,
+                              dataset_size=configs.data.training_size))
+    else:
+        raise NotImplementedError(configs.scheduler.name)
+    return scheduler

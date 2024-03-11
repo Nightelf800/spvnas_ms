@@ -67,15 +67,14 @@ def main() -> None:
 
     # seed = configs.train.seed + dist.rank(
     # ) * configs.workers_per_gpu * configs.num_epochs
-    # seed = configs.train.seed + get_rank() * configs.workers_per_gpu * configs.num_epochs
-    # random.seed(seed)
-    # np.random.seed(seed)
-    # set_seed(seed)
+    seed = configs.train.seed + rank * configs.workers_per_gpu * configs.num_epochs
+    random.seed(seed)
+    np.random.seed(seed)
+    set_seed(seed)
     dataset = builder.make_dataset()
     dataflow = {}
     for split in dataset:
         if distributed:
-            print('A')
             rank_size = get_group_size()
             sampler = ms.dataset.DistributedSampler(
                 num_shards=rank_size,
@@ -90,12 +89,11 @@ def main() -> None:
             dataflow[split] = dataflow[split].batch(
                 batch_size=configs.batch_size,
                 num_parallel_workers=configs.workers_per_gpu,
-                per_batch_map=dataset[split].collate_fn,
+                per_batch_map=dataset[split].per_batch_map,
                 # output_columns=['lidar', 'targets', 'targets_mapped', 'inverse_map', 'file_name']
-                output_columns=['feed_dict']
+                output_columns=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name', 'num_vox', 'num_pts']
             )
         else:
-            print('B')
             dataflow[split] = ds.GeneratorDataset(
                 dataset[split],
                 column_names=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name'],
@@ -106,7 +104,7 @@ def main() -> None:
                 num_parallel_workers=configs.workers_per_gpu,
                 per_batch_map=dataset[split].per_batch_map,
                 # input_columns=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name'],
-                output_columns=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name', 'num_pts']
+                output_columns=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name', 'num_vox', 'num_pts']
                 # output_columns=['feed_dict_list']
             )
 
@@ -128,7 +126,7 @@ def main() -> None:
     # #     model = torch.nn.parallel.DistributedDataParallel(
     # #         model, device_ids=[dist.local_rank()], find_unused_parameters=True)
     #
-    # criterion = builder.make_criterion()
+    criterion = builder.make_criterion()
     # optimizer = builder.make_optimizer(model)
     # scheduler = builder.make_scheduler(optimizer)
     #
