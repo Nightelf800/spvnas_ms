@@ -12,7 +12,7 @@ class SPHashQuery(Cell):
         def infer_func(a, b, c):
             return a
 
-        self.sphashquery = ops.Custom("./query_cuda.so:hash_query_ms",
+        self.sphashquery = ops.Custom("./torchsparse/nn/cuda/others/query_cuda.so:hash_query_ms",
                                       out_shape=infer_func,
                                       out_dtype=infer_func,
                                       func_type="aot")

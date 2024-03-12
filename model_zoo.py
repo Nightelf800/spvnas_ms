@@ -3,8 +3,8 @@ import os
 import sys
 from urllib.request import urlretrieve
 
-import torch
-from torchpack import distributed as dist
+import mindspore as ms
+from mindspore.communication import get_rank, get_local_rank
 
 from core.models.semantic_kitti.minkunet import MinkUNet
 from core.models.semantic_kitti.spvcnn import SPVCNN
@@ -37,18 +37,14 @@ def spvnas_specialized(net_id, pretrained=True, **kwargs):
         net_config['num_classes'],
         macro_depth_constraint=1,
         pres=net_config['pres'],
-        vres=net_config['vres']).to(
-            'cuda:%d'
-            % dist.local_rank() if torch.cuda.is_available() else 'cpu')
+        vres=net_config['vres'])
     model.manual_select(net_config)
     model = model.determinize()
 
     if pretrained:
-        init = torch.load(download_url(url_base + net_id + '/init',
+        init = ms.load_checkpoint(download_url(url_base + net_id + '/init',
                                        model_dir='.torch/spvnas_specialized/%s/'
-                                       % net_id),
-                          map_location='cuda:%d' % dist.local_rank()
-                          if torch.cuda.is_available() else 'cpu')['model']
+                                       % net_id))['model']
         model.load_state_dict(init)
     return model
 
@@ -64,16 +60,12 @@ def spvnas_supernet(net_id, pretrained=True, **kwargs):
         net_config['num_classes'],
         macro_depth_constraint=net_config['macro_depth_constraint'],
         pres=net_config['pres'],
-        vres=net_config['vres']).to(
-            'cuda:%d'
-            % dist.local_rank() if torch.cuda.is_available() else 'cpu')
+        vres=net_config['vres'])
 
     if pretrained:
-        init = torch.load(download_url(url_base + net_id + '/init',
+        init = ms.load_checkpoint(download_url(url_base + net_id + '/init',
                                        model_dir='.torch/spvnas_supernet/%s/'
-                                       % net_id),
-                          map_location='cuda:%d' % dist.local_rank()
-                          if torch.cuda.is_available() else 'cpu')['model']
+                                       % net_id))['model']
         model.load_state_dict(init)
     return model
 
@@ -86,16 +78,12 @@ def minkunet(net_id, pretrained=True, **kwargs):
                          model_dir='.torch/minkunet/%s/' % net_id)))
 
     model = MinkUNet(
-        num_classes=net_config['num_classes'], cr=net_config['cr']).to(
-            'cuda:%d'
-            % dist.local_rank() if torch.cuda.is_available() else 'cpu')
+        num_classes=net_config['num_classes'], cr=net_config['cr'])
 
     if pretrained:
-        init = torch.load(download_url(url_base + net_id + '/init',
+        init = ms.load_checkpoint(download_url(url_base + net_id + '/init',
                                        model_dir='.torch/minkunet/%s/'
-                                       % net_id),
-                          map_location='cuda:%d' % dist.local_rank()
-                          if torch.cuda.is_available() else 'cpu')['model']
+                                       % net_id))['model']
         model.load_state_dict(init)
     return model
 
@@ -111,14 +99,10 @@ def spvcnn(net_id, pretrained=True, **kwargs):
         num_classes=net_config['num_classes'],
         cr=net_config['cr'],
         pres=net_config['pres'],
-        vres=net_config['vres']).to(
-            'cuda:%d'
-            % dist.local_rank() if torch.cuda.is_available() else 'cpu')
+        vres=net_config['vres'])
 
     if pretrained:
-        init = torch.load(download_url(url_base + net_id + '/init',
-                                       model_dir='.torch/spvcnn/%s/' % net_id),
-                          map_location='cuda:%d' % dist.local_rank()
-                          if torch.cuda.is_available() else 'cpu')['model']
+        init = ms.load_checkpoint(download_url(url_base + net_id + '/init',
+                                       model_dir='.torch/spvcnn/%s/' % net_id))['model']
         model.load_state_dict(init)
     return model

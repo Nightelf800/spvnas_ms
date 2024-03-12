@@ -322,7 +322,7 @@ extern "C" int convolution_backward_ms(int nparam, void** params, int* ndims, in
   auto neighbor_map = tensors[5];
   auto neighbor_offset = tensors[6];
   auto output_grad_in_feat = tensors[8];
-  auto output_grad_kernel = tensors[9]
+  auto output_grad_kernel = tensors[9];
   // bool transpose = false;
 
   // Do the computation

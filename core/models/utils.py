@@ -1,4 +1,5 @@
-import torch
+import mindspore.nn as nn
+import mindspore.ops as ops
 import torchsparse.nn.functional as F
 from torchsparse import PointTensor, SparseTensor
 from torchsparse.nn.utils import get_kernel_offsets
@@ -9,17 +10,17 @@ __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
 # z: PointTensor
 # return: SparseTensor
 def initial_voxelize(z, init_res, after_res):
-    new_float_coord = torch.cat(
-        [(z.C[:, :3] * init_res) / after_res, z.C[:, -1].view(-1, 1)], 1)
+    new_float_coord = ops.Concat(axis=1)(
+        [(z.C[:, :3] * init_res) / after_res, z.C[:, -1].view(-1, 1)])
 
-    pc_hash = F.sphash(torch.floor(new_float_coord).int())
-    sparse_hash = torch.unique(pc_hash)
+    pc_hash = F.sphash(ops.Floor()(new_float_coord).astype('int32'))
+    sparse_hash = ops.Unique()(pc_hash)
     idx_query = F.sphashquery(pc_hash, sparse_hash)
     counts = F.spcount(idx_query.int(), len(sparse_hash))
 
-    inserted_coords = F.spvoxelize(torch.floor(new_float_coord), idx_query,
+    inserted_coords = F.spvoxelize(ops.Floor()(new_float_coord), idx_query,
                                    counts)
-    inserted_coords = torch.round(inserted_coords).int()
+    inserted_coords = ops.UniformReal()(inserted_coords).astype('int32')
     inserted_feat = F.spvoxelize(z.F, idx_query, counts)
 
     new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)
@@ -38,10 +39,10 @@ def point_to_voxel(x, z):
             'idx_query') is None or z.additional_features['idx_query'].get(
                 x.s) is None:
         pc_hash = F.sphash(
-            torch.cat([
-                torch.floor(z.C[:, :3] / x.s[0]).int() * x.s[0],
+            ops.Concat(axis=1)([
+                ops.Floor()(z.C[:, :3] / x.s[0]).astype('int32') * x.s[0],
                 z.C[:, -1].int().view(-1, 1)
-            ], 1))
+            ]))
         sparse_hash = F.sphash(x.C)
         idx_query = F.sphashquery(pc_hash, sparse_hash)
         counts = F.spcount(idx_query.int(), x.C.shape[0])
@@ -66,10 +67,10 @@ def voxel_to_point(x, z, nearest=False):
             x.s) is None or z.weights.get(x.s) is None:
         off = get_kernel_offsets(2, x.s, 1, device=z.F.device)
         old_hash = F.sphash(
-            torch.cat([
-                torch.floor(z.C[:, :3] / x.s[0]).int() * x.s[0],
+            ops.Concat(axis=1)([
+                ops.Floor()(z.C[:, :3] / x.s[0]).int() * x.s[0],
                 z.C[:, -1].int().view(-1, 1)
-            ], 1), off)
+            ]), off)
         pc_hash = F.sphash(x.C.to(z.F.device))
         idx_query = F.sphashquery(old_hash, pc_hash)
         weights = F.calc_ti_weights(z.C, idx_query,

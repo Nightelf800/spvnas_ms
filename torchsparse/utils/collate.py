@@ -1,7 +1,10 @@
 from typing import Any, List
 
+from mindspore import Tensor
+import mindspore as ms
+import mindspore.numpy as mnp
+import mindspore.ops as ops
 import numpy as np
-import torch
 
 from torchsparse import SparseTensor
 
@@ -14,25 +17,24 @@ def sparse_collate(inputs: List[SparseTensor]) -> SparseTensor:
 
     for k, x in enumerate(inputs):
         if isinstance(x.coords, np.ndarray):
-            x.coords = torch.tensor(x.coords)
+            x.coords = Tensor(x.coords)
         if isinstance(x.feats, np.ndarray):
-            x.feats = torch.tensor(x.feats)
+            x.feats = Tensor(x.feats)
 
-        assert isinstance(x.coords, torch.Tensor), type(x.coords)
-        assert isinstance(x.feats, torch.Tensor), type(x.feats)
+        assert isinstance(x.coords, Tensor), type(x.coords)
+        assert isinstance(x.feats, Tensor), type(x.feats)
         assert x.stride == stride, (x.stride, stride)
 
         input_size = x.coords.shape[0]
-        batch = torch.full((input_size, 1),
+        batch = mnp.full((input_size, 1),
                            k,
-                           device=x.coords.device,
-                           dtype=torch.int)
+                           dtype=ms.int32)
 
-        coords.append(torch.cat((x.coords, batch), dim=1))
+        coords.append(ops.Concat(axis=1)((x.coords, batch)))
         feats.append(x.feats)
 
-    coords = torch.cat(coords, dim=0)
-    feats = torch.cat(feats, dim=0)
+    coords = ops.Concat(axis=0)(coords)
+    feats = ops.Concat(axis=0)(feats)
     output = SparseTensor(coords=coords, feats=feats, stride=stride)
     return output
 
@@ -45,11 +47,10 @@ def sparse_collate_fn(inputs: List[Any]) -> Any:
                 output[name] = sparse_collate_fn(
                     [input[name] for input in inputs])
             elif isinstance(inputs[0][name], np.ndarray):
-                output[name] = torch.stack(
-                    [torch.tensor(input[name]) for input in inputs], dim=0)
-            elif isinstance(inputs[0][name], torch.Tensor):
-                output[name] = torch.stack([input[name] for input in inputs],
-                                           dim=0)
+                output[name] = ops.Stack(axis=0)(
+                    [Tensor(input[name]) for input in inputs])
+            elif isinstance(inputs[0][name], Tensor):
+                output[name] = ops.Stack(axis=0)([input[name] for input in inputs])
             elif isinstance(inputs[0][name], SparseTensor):
                 output[name] = sparse_collate([input[name] for input in inputs])
             else:

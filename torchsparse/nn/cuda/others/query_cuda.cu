@@ -10,7 +10,7 @@
 void hash_query_cuda(const at::Tensor hash_query,
                            const at::Tensor hash_target,
                            const at::Tensor idx_target,
-                           const at::Tensor out) {
+                           at::Tensor out) {
   // return group_point_forward_gpu(points, indices);
   int n = hash_target.size(0);
   int n1 = hash_query.size(0);
