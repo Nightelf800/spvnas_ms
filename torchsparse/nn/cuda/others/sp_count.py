@@ -12,7 +12,7 @@ class SPCount(Cell):
         def infer_func(a, b):
             return b
 
-        self.spcount = ops.Custom("./count_cuda.so:count_ms",
+        self.spcount = ops.Custom("torchsparse/nn/cuda/others/count_cuda.so:count_ms",
                                   out_shape=infer_func,
                                   out_dtype=infer_func,
                                   func_type="aot")

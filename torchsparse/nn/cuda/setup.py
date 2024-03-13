@@ -29,7 +29,8 @@ def main():
                 ext_modules=[
                     cpp_extension.CUDAExtension(
                         name=file_name,
-                        sources=[cpp_name, './hashmap/hashmap_cuda.cu', 'ms_ext.cpp'],  # 待编译文件
+                        sources=[cpp_name, 'ms_ext.cpp'],  # 待编译文件
+                        # sources=[cpp_name, './hashmap/hashmap_cuda.cu', 'ms_ext.cpp'],  #编译query_cuda时使用
                         extra_compile_args=[]
                         )
                     ],
