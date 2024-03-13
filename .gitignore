@@ -2,3 +2,5 @@
 .torch/
 */__pycache__/
 *.pyc
+.idea/
+*.so

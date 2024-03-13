@@ -8,7 +8,6 @@ __all__ = ['SPVCNN_MS']
 
 
 class SPVCNN_MS(nn.Cell):
-
     def __init__(self, **kwargs):
         super().__init__()
 

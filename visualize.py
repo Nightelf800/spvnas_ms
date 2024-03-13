@@ -1,368 +1,503 @@
-"""Visualization code for point clouds and 3D bounding boxes with mayavi.
-
-Modified by Charles R. Qi
-Date: September 2017
-"""
-
-import argparse
+import itertools
 import os
-
-import mayavi.mlab as mlab
 import numpy as np
+# import open3d.cuda.pybind.io
+import mindspore as ms
+from typing import List
+
+# from nuscenes import NuScenes
+# from pyquaternion import Quaternion
+# from core.datasets.utils import PCDTransformTool
 import open3d as o3d
-from mindspore import Tensor
-from torchsparse import SparseTensor
-from torchsparse.utils.quantize import sparse_quantize
+from PIL import Image, ImageDraw
+import matplotlib.pyplot as plt
+# from tqdm import tqdm
 
-from model_zoo import minkunet, spvcnn, spvnas_specialized
+CAM_CHANNELS = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
 
+VIEW_COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
-def process_point_cloud(input_point_cloud, input_labels=None, voxel_size=0.05):
-    input_point_cloud[:, 3] = input_point_cloud[:, 3]
-    pc_ = np.round(input_point_cloud[:, :3] / voxel_size)
-    pc_ -= pc_.min(0, keepdims=1)
-
-    label_map = create_label_map()
-    if input_labels is not None:
-        labels_ = label_map[input_labels & 0xFFFF].astype(
-            np.int64)  # semantic labels
-    else:
-        labels_ = np.zeros(pc_.shape[0], dtype=np.int64)
-
-    feat_ = input_point_cloud
-
-    if input_labels is not None:
-        out_pc = input_point_cloud[labels_ != labels_.max(), :3]
-        pc_ = pc_[labels_ != labels_.max()]
-        feat_ = feat_[labels_ != labels_.max()]
-        labels_ = labels_[labels_ != labels_.max()]
-    else:
-        out_pc = input_point_cloud
-        pc_ = pc_
-
-    coords_, inds, inverse_map = sparse_quantize(pc_,
-                                                 return_index=True,
-                                                 return_inverse=True)
-
-    pc = np.zeros((inds.shape[0], 4))
-    pc[:, :3] = pc_[inds]
-
-    feat = feat_[inds]
-    labels = labels_[inds]
-    lidar = SparseTensor(
-        Tensor.from_numpy(feat).float(),
-        Tensor.from_numpy(pc).int())
-    return {
-        'pc': out_pc,
-        'lidar': lidar,
-        'targets': labels,
-        'targets_mapped': labels_,
-        'inverse_map': inverse_map
-    }
-
-
-mlab.options.offscreen = True
-
-
-def create_label_map(num_classes=19):
-    name_label_mapping = {
-        'unlabeled': 0,
-        'outlier': 1,
-        'car': 10,
-        'bicycle': 11,
-        'bus': 13,
-        'motorcycle': 15,
-        'on-rails': 16,
-        'truck': 18,
-        'other-vehicle': 20,
-        'person': 30,
-        'bicyclist': 31,
-        'motorcyclist': 32,
-        'road': 40,
-        'parking': 44,
-        'sidewalk': 48,
-        'other-ground': 49,
-        'building': 50,
-        'fence': 51,
-        'other-structure': 52,
-        'lane-marking': 60,
-        'vegetation': 70,
-        'trunk': 71,
-        'terrain': 72,
-        'pole': 80,
-        'traffic-sign': 81,
-        'other-object': 99,
-        'moving-car': 252,
-        'moving-bicyclist': 253,
-        'moving-person': 254,
-        'moving-motorcyclist': 255,
-        'moving-on-rails': 256,
-        'moving-bus': 257,
-        'moving-truck': 258,
-        'moving-other-vehicle': 259
-    }
-
-    for k in name_label_mapping:
-        name_label_mapping[k] = name_label_mapping[k.replace('moving-', '')]
-    train_label_name_mapping = {
-        0: 'car',
-        1: 'bicycle',
-        2: 'motorcycle',
-        3: 'truck',
-        4: 'other-vehicle',
-        5: 'person',
-        6: 'bicyclist',
-        7: 'motorcyclist',
-        8: 'road',
-        9: 'parking',
-        10: 'sidewalk',
-        11: 'other-ground',
-        12: 'building',
-        13: 'fence',
-        14: 'vegetation',
-        15: 'trunk',
-        16: 'terrain',
-        17: 'pole',
-        18: 'traffic-sign'
-    }
-
-    label_map = np.zeros(260) + num_classes
-    for i in range(num_classes):
-        cls_name = train_label_name_mapping[i]
-        label_map[name_label_mapping[cls_name]] = min(num_classes, i)
-    return label_map.astype(np.int64)
-
-
-cmap = np.array([
-    [245, 150, 100, 255],
-    [245, 230, 100, 255],
-    [150, 60, 30, 255],
-    [180, 30, 80, 255],
-    [255, 0, 0, 255],
-    [30, 30, 255, 255],
-    [200, 40, 255, 255],
-    [90, 30, 150, 255],
-    [255, 0, 255, 255],
-    [255, 150, 255, 255],
-    [75, 0, 75, 255],
-    [75, 0, 175, 255],
-    [0, 200, 255, 255],
-    [50, 120, 255, 255],
-    [0, 175, 0, 255],
-    [0, 60, 135, 255],
-    [80, 240, 150, 255],
-    [150, 240, 255, 255],
-    [0, 0, 255, 255],
-])
-cmap = cmap[:, [2, 1, 0, 3]]  # convert bgra to rgba
-
-
-def draw_lidar(pc,
-               color=None,
-               fig=None,
-               bgcolor=(1, 1, 1),
-               pts_scale=0.06,
-               pts_mode='2dcircle',
-               pts_color=None):
-    if fig is None:
-        fig = mlab.figure(figure=None,
-                          bgcolor=bgcolor,
-                          fgcolor=None,
-                          engine=None,
-                          size=(800, 500))
-    if color is None:
-        color = pc[:, 2]
-    pts = mlab.points3d(pc[:, 0],
-                        pc[:, 1],
-                        pc[:, 2],
-                        color,
-                        mode=pts_mode,
-                        scale_factor=pts_scale,
-                        figure=fig)
-    pts.glyph.scale_mode = 'scale_by_vector'
-    pts.glyph.color_mode = 'color_by_scalar'  # Color by scalar
-    pts.module_manager.scalar_lut_manager.lut.table = cmap
-    pts.module_manager.scalar_lut_manager.lut.number_of_colors = cmap.shape[0]
-
-    mlab.view(azimuth=180,
-              elevation=70,
-              focalpoint=[12.0909996, -1.04700089, -2.03249991],
-              distance=62,
-              figure=fig)
-
-    return fig
-
-
-# visualize by open3d
-label_name_mapping = {
-    0: 'unlabeled',
-    1: 'outlier',
-    10: 'car',
-    11: 'bicycle',
-    13: 'bus',
-    15: 'motorcycle',
-    16: 'on-rails',
-    18: 'truck',
-    20: 'other-vehicle',
-    30: 'person',
-    31: 'bicyclist',
-    32: 'motorcyclist',
-    40: 'road',
-    44: 'parking',
-    48: 'sidewalk',
-    49: 'other-ground',
-    50: 'building',
-    51: 'fence',
-    52: 'other-structure',
-    60: 'lane-marking',
-    70: 'vegetation',
-    71: 'trunk',
-    72: 'terrain',
-    80: 'pole',
-    81: 'traffic-sign',
-    99: 'other-object',
-    252: 'moving-car',
-    253: 'moving-bicyclist',
-    254: 'moving-person',
-    255: 'moving-motorcyclist',
-    256: 'moving-on-rails',
-    257: 'moving-bus',
-    258: 'moving-truck',
-    259: 'moving-other-vehicle'
+labels_mapping = {
+    1: 0,
+    5: 0,
+    7: 0,
+    8: 0,
+    10: 0,
+    11: 0,
+    13: 0,
+    19: 0,
+    20: 0,
+    0: 0,
+    29: 0,
+    31: 0,
+    9: 1,
+    14: 2,
+    15: 3,
+    16: 3,
+    17: 4,
+    18: 5,
+    21: 6,
+    2: 7,
+    3: 7,
+    4: 7,
+    6: 7,
+    12: 8,
+    22: 9,
+    23: 10,
+    24: 11,
+    25: 12,
+    26: 13,
+    27: 14,
+    28: 15,
+    30: 16
 }
 
-kept_labels = [
-    'road', 'sidewalk', 'parking', 'other-ground', 'building', 'car', 'truck',
-    'bicycle', 'motorcycle', 'other-vehicle', 'vegetation', 'trunk', 'terrain',
-    'person', 'bicyclist', 'motorcyclist', 'fence', 'pole', 'traffic-sign'
-]
+IDX2COLOR_16 = [(0, 0, 0),
+                (112, 128, 144),  # barrier 蓝灰色
+                (220, 20, 60),  # bicycle 玫红色
+                (255, 127, 80),  # bus
+                (255, 158, 0),  # car 黄色
+                (233, 150, 70),  # construction_vehicle 工程车 浅一点的橙色
+                (255, 61, 99),  # motorcycle 桃红色
+                (0, 0, 230),  # pedestrian 蓝色
+                (47, 79, 79),  # traffic_cone 锥形交通路标 灰绿色
+                (255, 140, 0),  # trailer 拖车 橙色
+                (255, 99, 71),  # truck 卡车
+                (0, 207, 191),  # driveable_surface 蓝绿色
+                (175, 0, 75),  # other_flat 紫红色
+                (75, 0, 75),  # sidewalk 紫色
+                (112, 180, 60),  # terrain 草绿色
+                (222, 184, 135),  # manmade 土黄色
+                (0, 175, 0)]  # vegetation 深绿色
+
+IDX2COLOR_22 = [(0, 0, 0),
+                (112, 128, 144),  # barrier 蓝灰色 1
+                (220, 20, 60),  # bicycle 玫红色 2
+                (255, 127, 80),  # bus 3
+                (255, 158, 0),  # car 黄色 4
+                (233, 150, 70),  # construction_vehicle 工程车 浅一点的橙色 5
+                (255, 61, 99),  # motorcycle 桃红色 6
+                (0, 0, 230),  # pedestrian 蓝色 7
+                (47, 79, 79),  # traffic_cone 锥形交通路标 灰绿色 8
+                (255, 140, 0),  # trailer 拖车 橙色 9
+                (255, 99, 71),  # truck 卡车 10
+                (0, 207, 191),  # driveable_surface 蓝绿色 11
+                (175, 0, 75),  # other_flat 紫红色 12
+                (75, 0, 75),  # sidewalk 紫色 13
+                (112, 180, 60),  # terrain 草绿色 14
+                (222, 184, 135),  # manmade 土黄色 15
+                (0, 175, 0),  # vegetation 深绿色 16
+                (255, 40, 200),  # bicyclist 粉红色 17
+                (150, 30, 90),  # motorcyclist 紫红色 18
+                (150, 255, 170),  # lane_marker 青绿色 19
+                (255, 0, 0),  # traffic_sign 大红色 20
+                (255, 150, 150),  # curb 粉红色 21
+                (255, 240, 150),  # pole 淡黄色 22
+                ]
+
+SemKITTI_label_name_16 = {
+    0: 'noise',
+    1: 'barrier',
+    2: 'bicycle',
+    3: 'bus',
+    4: 'car',
+    5: 'construction_vehicle',
+    6: 'motorcycle',
+    7: 'pedestrian',
+    8: 'traffic_cone',
+    9: 'trailer',
+    10: 'truck',
+    11: 'driveable_surface',
+    12: 'other_flat',
+    13: 'sidewalk',
+    14: 'terrain',
+    15: 'manmade',
+    16: 'vegetation',
+}
+
+SemKITTI_label_name_19 = {
+    0: 'noise',
+    1: 'car',
+    2: 'bicycle',
+    3: 'motorcycle',
+    4: 'truck',
+    5: 'other-vehicle',
+    6: 'person',
+    7: 'bicyclist',
+    8: 'motorcyclist',
+    9: 'road',
+    10: 'parking',
+    11: 'sidewalk',
+    12: 'other-ground',
+    13: 'building',
+    14: 'fence',
+    15: 'vegetation',
+    16: 'trunk',
+    17: 'terrain',
+    18: 'pole',
+    19: 'traffic-sign'
+}
+
+SemKITTI_label_name_22 = {
+    0: 'noise',  #
+    1: 'car',  #
+    2: 'truck',  #
+    3: 'bus',  #
+    4: 'other_vehicle',  #
+    5: 'motorcyclist',  #
+    6: 'bicyclist',  #
+    7: 'pedestrian',  #
+    8: 'sign',  #
+    9: 'traffic_light',  #
+    10: 'pole',  #
+    11: 'construction_cone',  #
+    12: 'bicycle',  #
+    13: 'motorcycle',  #
+    14: 'building',  #
+    15: 'vegetation',  #
+    16: 'tree_trunk',  #
+    17: 'curb',  #  路沿
+    18: 'road',  #
+    19: 'lane_marker',  #
+    20: 'other_ground',  #
+    21: 'walkable',  #
+    22: 'sidewalk'  #
+}
+
+MapSemKITTI2NUSC = {
+    0: 0,
+    1: 4,
+    2: 2,
+    3: 6,
+    4: 10,
+    5: 5,
+    6: 7,
+    7: 17,
+    8: 18,
+    9: 11,
+    10: 12,
+    11: 13,
+    12: 12,
+    13: 15,
+    14: 1,
+    15: 16,
+    16: 16,
+    17: 14,
+    18: 22,
+    19: 20,
+}
+
+MapWaymo2NUSC = {
+    0: 0,  # noise
+    1: 4,  # car
+    2: 10,  # truck
+    3: 3,  # bus
+    4: 5,  # other-vehicle
+    5: 18,  # motorcyclist
+    6: 17,  # bicyclist
+    7: 7,  # pedestrian
+    8: 8,  # sign
+    9: 20,  # traffic_light
+    10: 22,  # pole
+    11: 1,  # construction_cone
+    12: 2,  # bicycle
+    13: 6,  # motorcycle
+    14: 15,  # building
+    15: 16,  # vegetation
+    16: 9,  # tree_trunk
+    17: 21,  # curb 路沿
+    18: 11,  # road
+    19: 19,  # lane_marker
+    20: 12,  # other_ground
+    21: 14,  # walkable
+    22: 13  # sidewalk
+}
 
 
-class BinVisualizer:
+def draw_bar_chart(bar_val_list: List, bar_name_list: List, col_name_list: List, width_per_col=0.25,
+                   fig_save_path=None):
+    """
+    :param bar_val_list: <List[ndarray], [N,]; <ndarray, [C,]>> len表示每个bar有多少列数据, C表示bar的数量
+    :param bar_name_list: <List[str], [C,]> 每个bar的标签
+    :param col_name_list: <List[str], [N,]> 每个col的标签
+    :param width_per_col: float 每个col的宽
+    :param fig_save_path:
+    :return:
+    """
+    if fig_save_path is not None:
+        import matplotlib
+        matplotlib.use('agg')
+        import matplotlib.pyplot as plt
+    else:
+        import matplotlib.pyplot as plt
 
-    def __init__(self):
-        self.points = np.zeros((0, 3), dtype=np.float32)
-        self.sem_label = np.zeros((0, 1), dtype=np.uint32)  # [m, 1]: label
-        self.sem_label_color = np.zeros((0, 3),
-                                        dtype=np.float32)  # [m ,3]: color
+    col_per_bar = len(bar_val_list)
+    color_per_col = ['yellowgreen', 'tomato', 'silver', 'c', 'b', 'm']
+    bar_val_list_numpy = []
+    for bar_val in bar_val_list:
+        if isinstance(bar_val, np.ndarray):
+            bar_val_list_numpy.append(bar_val)
+        elif isinstance(bar_val, ms.Tensor):
+            bar_val_list_numpy.append(bar_val.asnumpy())
+        elif isinstance(bar_val, list):
+            bar_val_list_numpy.append(np.array(bar_val))
+        else:
+            print("only accept bar_val of type ndarray, tensor or list")
+            exit(-1)
+    num_bar = bar_val_list_numpy[0].shape[0]
+    base_x = np.arange(num_bar)
+    for i, (val, col_name) in enumerate(zip(bar_val_list, col_name_list)):
+        val = np.round(val, 2)
+        plt.bar(base_x + i * width_per_col, val, width=width_per_col, label=col_name, fc=color_per_col[i])
+    plt.legend()
 
-        # label map
-        reverse_label_name_mapping = {}
-        self.label_map = np.zeros(260)
-        cnt = 0
-        for label_id in label_name_mapping:
-            if label_id > 250:
-                if label_name_mapping[label_id].replace('moving-',
-                                                        '') in kept_labels:
-                    self.label_map[label_id] = reverse_label_name_mapping[
-                        label_name_mapping[label_id].replace('moving-', '')]
-                else:
-                    self.label_map[label_id] = 255
-            elif label_id == 0:
-                self.label_map[label_id] = 255
-            else:
-                if label_name_mapping[label_id] in kept_labels:
-                    self.label_map[label_id] = cnt
-                    reverse_label_name_mapping[
-                        label_name_mapping[label_id]] = cnt
-                    cnt += 1
-                else:
-                    self.label_map[label_id] = 255
-        self.reverse_label_name_mapping = reverse_label_name_mapping
+    plt.xticks(base_x + width_per_col / 2, bar_name_list, rotation=45)
 
-    def read_pc_label(self, points, label):
-        assert points.shape[0] == label.shape[0]
-        label = label.reshape(-1)
-        self.sem_label = label
-        self.points = points[:, :3]
+    if fig_save_path is not None:
+        plt.savefig(fig_save_path)
+        # print("figure save to", fig_save_path)
+    else:
+        plt.show()
 
-    def show_cloud(self, window_name='open3d'):
-        # make color table
-        color_dict = {}
-        for i in range(19):
-            color_dict[i] = cmap[i, :]
-        color_dict[255] = [0, 0, 0, 255]
 
-        pc = o3d.geometry.PointCloud()
-        pc.points = o3d.utility.Vector3dVector(self.points)
-        cloud_color = [color_dict[i] for i in list(self.sem_label)]
-        self.sem_label_color = np.array(cloud_color).reshape(
-            (-1, 4))[:, :3] / 255
-        pc.colors = o3d.utility.Vector3dVector(self.sem_label_color)
+def draw_confuse_matrix(bar_name_list: List, confuse_matrix: np.ndarray, normalize, fig_save_path, fig_size=(6.4, 4.8), title='Confuse Matrix'):
 
-        o3d.visualization.draw_geometries([pc], window_name)
+    def _normalize_matrix(confuse_matrix: np.ndarray):
+        row_sum = np.sum(confuse_matrix, axis=-1, keepdims=True)
+        return confuse_matrix / row_sum
 
-    def run_visualize(self, points, label, window_name):
-        self.read_pc_label(points, label)
-        self.show_cloud(window_name)
+    if fig_save_path is not None:
+        import matplotlib
+        matplotlib.use('agg')
+        import matplotlib.pyplot as plt
+    else:
+        import matplotlib.pyplot as plt
+
+    plt.figure(figsize=fig_size)
+    if normalize:
+        confuse_matrix = _normalize_matrix(confuse_matrix)
+    plt.imshow(confuse_matrix, cmap=plt.cm.Blues)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(bar_name_list))
+    plt.xticks(tick_marks, bar_name_list, rotation=45)
+    plt.yticks(tick_marks, bar_name_list)
+    plt.ylim(len(bar_name_list) - 0.5, -0.5)
+    fmt = '.2f' if normalize else 'd'
+    thresh = np.max(confuse_matrix) / 2.
+    for i, j in itertools.product(range(confuse_matrix.shape[0]), range(confuse_matrix.shape[1])):
+        plt.text(j, i, format(confuse_matrix[i, j], fmt), horizontalalignment='center',
+                 color='white' if confuse_matrix[i, j] > thresh else 'black')
+    # plt.tight_layout()
+    plt.ylabel('Ground Truth')
+    plt.xlabel('Prediction')
+    if fig_save_path is not None:
+        plt.savefig(fig_save_path)
+    else:
+        plt.show()
+
+
+def load_bin_file(bin_path: str) -> np.ndarray:
+    """
+    Loads a .bin file containing the labels.
+    :param bin_path: Path to the .bin file.
+    :return: An array containing the labels.
+    """
+    assert os.path.exists(bin_path), 'Error: Unable to find {}.'.format(bin_path)
+    bin_content = np.fromfile(bin_path, dtype=np.uint8)
+    assert len(bin_content) > 0, 'Error: {} is empty.'.format(bin_path)
+
+    return bin_content
+
+
+def visualize_pcd(xyz, **kwargs):
+    """
+    使用open3d渲染点云
+    Args:
+        xyz: <ndarray> [N, 3] 点云三维坐标xyz
+        **kwargs: 可选参数
+        1. predict <ndarray> [N,] 网络预测的点云标签, 第二维取值范围[0, num_class];
+        2. target <ndarray> [N,] 点云标签真值
+        3. view <ndarray> [N,] 每个点所在相机视野标签, 第二维取值范围[0,6)
+        4. rgb <ndarray> [N, 3] 每个点的颜色, 取值范围[0, 255]
+        5. select_inds <ndarray> bool标签[N, ]或者序号标签[npoint, ]
+    Returns:
+
+    """
+
+    for k, v in kwargs.items():
+        if isinstance(v, ms.Tensor):
+            v = v.asnumpy()
+        if k == "predict":
+            predict_color = o3d.utility.Vector3dVector(np.array([IDX2COLOR_22[int(c % 23)] for c in v]) / 255.0)
+            print("load predict, render with W")
+        elif k == "target":
+            gt_color = o3d.utility.Vector3dVector(np.array([IDX2COLOR_22[int(c % 23)] for c in v]) / 255.0)
+            print("load target, render with Q")
+        elif k == "view":
+            view_color = o3d.utility.Vector3dVector(
+                np.array([VIEW_COLORS[c] if c != -1 else (255, 255, 255) for c in v]) / 255.0)
+        elif k == 'rgb':
+            rgb_color = o3d.utility.Vector3dVector(v / 255.0)
+        elif k == 'select_inds':
+            s_color = np.ones((xyz.shape[0], 3), dtype=np.float32) / 2
+            s_color[v, :] = np.array([1., 0., 0.])
+            s_color = o3d.utility.Vector3dVector(s_color)
+
+    if isinstance(xyz, ms.Tensor):
+        xyz = xyz.asnumpy()
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(xyz[:, :3])
+
+    def render_gt_color_callback(viewer):
+        if "target" in kwargs.keys():
+            pcd.colors = gt_color
+            viewer.update_geometry(pcd)
+            print("render target")
+        else:
+            print("No ground truth color provided")
+
+    def render_predict_color_callback(viewer):
+        if "predict" in kwargs.keys():
+            pcd.colors = predict_color
+            viewer.update_geometry(pcd)
+            print("render predict")
+        else:
+            print("No predict color provided")
+
+    def render_view_color_callback(viewer):
+        if "view" in kwargs.keys():
+            pcd.colors = view_color
+            viewer.update_geometry(pcd)
+        else:
+            print("No view color provided")
+
+    def render_rgb_color_callback(viewer):
+        if 'rgb' in kwargs.keys():
+            pcd.colors = rgb_color
+            viewer.update_geometry(pcd)
+        else:
+            print("No RGB color provided")
+
+    def render_select_points_callback(viewer):
+        if 'select_inds' in kwargs.keys():
+            pcd.colors = s_color
+            viewer.update_geometry(pcd)
+        else:
+            print("No select inds provided")
+
+    def save_viewpoint_callback(viewer):
+        param = viewer.get_view_control().convert_to_pinhole_camera_parameters()
+        o3d.cuda.pybind.io.write_pinhole_camera_parameters('viewpoint_param.json', param)
+        print('save viewpoint param')
+
+    viewer = o3d.visualization.VisualizerWithKeyCallback()
+    viewer.create_window()
+    opt = viewer.get_render_option()
+    opt.background_color = np.asarray([1., 1., 1.])
+    viewer.register_key_callback(ord("Q"), render_gt_color_callback)
+    viewer.register_key_callback(ord("W"), render_predict_color_callback)
+    viewer.register_key_callback(ord("V"), render_view_color_callback)
+    viewer.register_key_callback(ord("R"), render_rgb_color_callback)
+    viewer.register_key_callback(ord("S"), render_select_points_callback)
+    viewer.register_key_callback(ord("P"), save_viewpoint_callback)
+    viewer.add_geometry(pcd)
+    if kwargs.get('viewpoint', None) is not None:
+        path = kwargs.get('viewpoint', None)
+        if os.path.exists(path):
+            ctr = viewer.get_view_control()
+            param = o3d.io.read_pinhole_camera_parameters(kwargs.get('viewpoint'))
+            ctr.convert_from_pinhole_camera_parameters(param)
+        else:
+            print('view point file not exist!')
+    viewer.run()
+    viewer.destroy_window()
+
+
+def visualize_img(image: np.ndarray, **kwargs):
+    """
+    使用Image可视化图像
+    :param image: <np.ndarray, [H, W, 3]>
+    :param kwargs:
+    1. predict <np.ndarray, [H, W]> 标签
+    2. points <np.ndarray, [N, 3]> N个点, 0,1 -> w,h; 2->label
+    :return:
+    """
+
+    if isinstance(image, ms.Tensor):
+        image = image.asnumpy().astype(np.uint8)
+
+    oh, ow, c = image.shape
+    assert image.ndim == 3
+    image = Image.fromarray(image).convert(mode='RGB')
+
+    if len(kwargs) == 0:
+        plt.imshow(image)
+        plt.show()
+    else:
+        for k, v in kwargs.items():
+            if isinstance(v, ms.Tensor):
+                v = v.asnumpy()
+            if k == 'predict':
+                h, w = v.shape
+                image_resize = image
+                if h != image.height or w != image.width:
+                    from mindspore.dataset.vision import Resize, Inter
+                    trans = Resize(size=v.shape, interpolation=Inter.NEAREST)
+                    image_resize = trans(image)
+                color = np.array([IDX2COLOR_22[c] for c in v.flatten()]).reshape((h, w, 3)).astype(np.uint8)
+                color = Image.fromarray(color).convert(mode='RGB')
+                mix = Image.blend(image_resize, color, alpha=0.25)
+                plt.imshow(mix)
+            elif k == 'point':
+                co, l = v[:, :2], v[:, 2]
+                co[:, 0] = (co[:, 0] + 1.0) / 2 * (ow - 1.0)
+                co[:, 1] = (co[:, 1] + 1.0) / 2 * (oh - 1.0)
+                co = np.floor(co).astype(np.int32)
+                l = l.astype(np.int32)
+                color = [IDX2COLOR_22[c % 23] for c in l.flatten()]
+                imagedraw = ImageDraw.Draw(image)
+                rad = 0.01
+                for (x, y), c in zip(co, color):
+                    imagedraw.ellipse(xy=[x - rad, y - rad, x + rad, y + rad], fill=c)
+                plt.imshow(image)
+            elif k == 'select_inds':
+                co, l = v[:, :2], v[:, 2]
+                co[:, 0] = (co[:, 0] + 1.0) / 2 * (ow - 1.0)
+                co[:, 1] = (co[:, 1] + 1.0) / 2 * (oh - 1.0)
+                co = np.floor(co).astype(np.int32)
+                l = l.astype(bool)
+                color = np.ones(shape=[co.shape[0], 3], dtype=np.float32) / 2
+                color[l] = np.array([1., 0., 0.], dtype=np.float32)
+                color *= 255
+                color = color.astype(np.uint8)
+                imagedraw = ImageDraw.Draw(image)
+                rad = 0.25
+                for (x, y), c in zip(co, color):
+                    imagedraw.ellipse(xy=[x - rad, y - rad, x + rad, y + rad], fill=tuple(c))
+                plt.imshow(image)
+            elif k == 'superpixel':
+                h, w = v.shape
+                v = v.astype(np.int32)
+                # color = np.array([IDX2COLOR_16[1:][c % 16] for c in v.flatten()]).reshape((h, w, 3)).astype(np.uint8)
+                color = np.array([IDX2COLOR_22[c % 23] for c in v.flatten()]).reshape((h, w, 3)).astype(np.uint8)
+                color = Image.fromarray(color).convert(mode='RGB')
+                mix = Image.blend(image, color, alpha=0.25)
+                plt.imshow(mix)
+            elif k == 'heatmap':
+                from matplotlib.cm import get_cmap
+                h, w = v.shape
+                color = get_cmap('bwr')(v)[:, :, :3] * 255
+                color = Image.fromarray(color.astype(np.uint8)).convert(mode='RGB')
+                mix = Image.blend(image, color, alpha=0.25)
+                plt.imshow(mix)
+            plt.show()
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--velodyne-dir', type=str, default='sample_data')
-    parser.add_argument('--model',
-                        type=str,
-                        default='SemanticKITTI_val_SPVNAS@65GMACs')
-    parser.add_argument('--visualize_backend',
-                        type=str,
-                        default='open3d',
-                        help='visualization beckend, default=open3d')
-    args = parser.parse_args()
-    output_dir = os.path.join(args.velodyne_dir, 'outputs')
-    os.makedirs(output_dir, exist_ok=True)
-
-    if torch.cuda.is_available():
-        device = 'cuda:0'
-    else:
-        device = 'cpu'
-
-    if 'MinkUNet' in args.model:
-        model = minkunet(args.model, pretrained=True)
-    elif 'SPVCNN' in args.model:
-        model = spvcnn(args.model, pretrained=True)
-    elif 'SPVNAS' in args.model:
-        model = spvnas_specialized(args.model, pretrained=True)
-    else:
-        raise NotImplementedError
-
-    model = model.to(device)
-
-    input_point_clouds = sorted(os.listdir(args.velodyne_dir))
-    for point_cloud_name in input_point_clouds:
-        if not point_cloud_name.endswith('.bin'):
-            continue
-        label_file_name = point_cloud_name.replace('.bin', '.label')
-        vis_file_name = point_cloud_name.replace('.bin', '.png')
-        gt_file_name = point_cloud_name.replace('.bin', '_GT.png')
-
-        pc = np.fromfile(f'{args.velodyne_dir}/{point_cloud_name}',
-                         dtype=np.float32).reshape(-1, 4)
-        if os.path.exists(f'{args.velodyne_dir}/{label_file_name}'):
-            label = np.fromfile(f'{args.velodyne_dir}/{label_file_name}',
-                                dtype=np.int32)
-        else:
-            label = None
-        feed_dict = process_point_cloud(pc, label)
-        inputs = feed_dict['lidar'].to(device)
-        outputs = model(inputs)
-        predictions = outputs.argmax(1).cpu().numpy()
-        predictions = predictions[feed_dict['inverse_map']]
-
-        if args.visualize_backend == 'mayavi':
-            fig = draw_lidar(feed_dict['pc'], predictions.astype(np.int32))
-            mlab.savefig(f'{output_dir}/{vis_file_name}')
-            if label is not None:
-                fig = draw_lidar(feed_dict['pc'], feed_dict['targets_mapped'])
-                mlab.savefig(f'{output_dir}/{gt_file_name}')
-        elif args.visualize_backend == 'open3d':
-            # visualize prediction
-            bin_vis = BinVisualizer()
-            bin_vis.run_visualize(feed_dict['pc'], predictions.astype(np.int32),
-                                  'Predictions')
-            if label is not None:
-                bin_vis = BinVisualizer()
-                bin_vis.run_visualize(feed_dict['pc'],
-                                      feed_dict['targets_mapped'],
-                                      'Ground turth')
-        else:
-            raise NotImplementedError
+    bar_val_list = []
+    for i in range(3):
+        bar_val_list.append(np.random.random(17, )[1:])
+    draw_bar_chart(bar_val_list=bar_val_list, bar_name_list=list(SemKITTI_label_name_16.values())[1:],
+                   col_name_list=['A', 'B', 'C'], fig_save_path='./debug.png')

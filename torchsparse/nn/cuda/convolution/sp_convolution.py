@@ -37,7 +37,6 @@ class SPConvolution(Cell):
 
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
-
     sample = np.load("conv_forward_sample.npz")
     
     print("input.type: ", sample["input"].dtype)

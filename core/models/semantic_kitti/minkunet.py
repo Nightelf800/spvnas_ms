@@ -1,3 +1,4 @@
+
 import mindspore
 import mindspore.nn as nn
 import torchsparse
@@ -77,7 +78,6 @@ class ResidualBlock(nn.Cell):
 
 
 class MinkUNet(nn.Cell):
-
     def __init__(self, **kwargs):
         super().__init__()
 

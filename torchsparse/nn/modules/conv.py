@@ -7,6 +7,7 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter
 from mindspore.common.initializer import initializer, Uniform
+
 from torchsparse import SparseTensor
 from torchsparse.nn import functional as F
 from torchsparse.utils import make_ntuple
@@ -42,6 +43,7 @@ class Conv3d(nn.Cell):
             self.bias = Parameter(ops.Zeros()(out_channels))
         else:
             self.bias = None
+
         self.reset_parameters()
 
     def extra_repr(self) -> str:

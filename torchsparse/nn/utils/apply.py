@@ -1,9 +1,10 @@
 from typing import Callable
-
 from mindspore import Tensor
+
 from torchsparse import SparseTensor
 
 __all__ = ['fapply']
+
 
 
 def fapply(input: SparseTensor, fn: Callable[..., Tensor], *args,

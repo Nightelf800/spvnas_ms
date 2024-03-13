@@ -24,11 +24,13 @@ from core import builder
 
 order = "configs/semantic_kitti/spvcnn/cr0p5.yaml --distributed False"
 
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('config', metavar='FILE', help='config file')
     parser.add_argument('--run-dir', metavar='DIR', help='run directory')
     args, opts = parser.parse_known_args(order.split())
+
 
     configs.load(args.config, recursive=True)
     configs.update(opts)
@@ -125,18 +127,30 @@ def main() -> None:
     #         cur += n
 
     net = builder.make_model()
+    from visualize import visualize_pcd
+    for fd_tuple in dataflow['train'].create_tuple_iterator(output_numpy=True):
+        feed_dict = dataset['train'].collate_fn(*fd_tuple)
+        lidar = feed_dict['lidar']
+        num_vox = [80000, 80000]
+        targets = ms.ops.cast(feed_dict['targets'].F, ms.int64)
+        cur = 0
+        for n in num_vox:
+            pts = lidar.F[cur:cur+n, :3]
+            label = targets[cur:cur+n]
+            visualize_pcd(xyz=pts, target=label)
+            cur += n
+
     # # if configs.distributed:
     # #     model = torch.nn.parallel.DistributedDataParallel(
     # #         model, device_ids=[dist.local_rank()], find_unused_parameters=True)
     #
     criterion = builder.make_criterion()
     optimizer = builder.make_optimizer(net)
-
+    # scheduler = builder.make_scheduler(optimizer)
     loss_net = CustomWithLossCell(net, criterion)
     model = ms.Model(loss_net, optimizer=optimizer)
     model.train(1, dataflow["train"], dataset_sink_mode=False)
 
-    # scheduler = builder.make_scheduler(optimizer)
     #
     # trainer = SemanticKITTITrainer(model=model,
     #                                criterion=criterion,

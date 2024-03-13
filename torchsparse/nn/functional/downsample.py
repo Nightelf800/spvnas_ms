@@ -4,7 +4,6 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-
 from torchsparse.nn.utils import get_kernel_offsets
 from torchsparse.utils import make_ntuple
 

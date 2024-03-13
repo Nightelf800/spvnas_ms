@@ -21,7 +21,7 @@ class ToBEVReduction(nn.Module):
     def extra_repr(self):
         return f'dim = {self.dim}'
 
-    def construct(self, input: SparseTensor) -> SparseTensor:
+    def forward(self, input: SparseTensor) -> SparseTensor:
         coords, feats, stride = input.coords, input.feats, input.stride
 
         coords = coords.clone()

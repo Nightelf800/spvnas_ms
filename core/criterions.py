@@ -11,4 +11,3 @@ class CrossEntropyLossWithIgnored(nn.Cell):
     def construct(self, logits, labels):
         valid_index = ms.ops.nonzero(labels != self.ignore_index).flatten()
         return self.ce(logits[valid_index], labels[valid_index])
-

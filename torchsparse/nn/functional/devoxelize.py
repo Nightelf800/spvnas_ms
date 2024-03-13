@@ -1,7 +1,6 @@
 import torch
 from torch.autograd import Function
 from torch.cuda.amp import custom_bwd, custom_fwd
-
 from torchsparse.nn.cuda.devoxelize import SPDevoxelize
 from mindspore import Tensor
 import mindspore.nn as nn
@@ -75,7 +74,6 @@ class DevoxelizeFunction(nn.Cell):
                 grad_output, coords, weights, feats.shape[0])
         else:
             raise NotImplementedError
-
         return grad_feats, None, None
 
 

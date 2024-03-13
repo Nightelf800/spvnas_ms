@@ -4,6 +4,5 @@ from torchsparse.nn.cuda.others import SPCount
 
 __all__ = ['spcount']
 
-
 def spcount(coords: ms.Tensor, num: ms.Tensor) -> ms.Tensor:
     return SPCount()(coords.astype("int32"), ops.Zeros()((len(num)), ms.int32))

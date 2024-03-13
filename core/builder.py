@@ -2,6 +2,8 @@ from typing import Callable
 from core.utils.config import configs
 import mindspore as ms
 import mindspore.nn as nn
+from core.schedulers import cosine_schedule_with_warmup
+
 # import torch
 # import torch.optim
 # from torch import nn
@@ -13,7 +15,7 @@ import mindspore.nn as nn
 #     'make_scheduler'
 # ]
 __all__ = [
-    'make_dataset', 'make_criterion',
+    'make_dataset', 'make_criterion', 'make_optimizer'
 ]
 
 def make_dataset():
@@ -43,6 +45,7 @@ def make_model():
         else:
             cr = 1.0
         model = SPVCNN_MS(num_classes=configs.data.num_classes,
+        # model = SPVCNN(num_classes=configs.data.num_classes,
                        cr=cr,
                        pres=configs.dataset.voxel_size,
                        vres=configs.dataset.voxel_size)
@@ -63,8 +66,9 @@ def make_criterion():
 
 def make_optimizer(model):
     if configs.optimizer.name == 'sgd':
-        optimizer = nn.SGD(model.trainable_params(),
-                           learning_rate=configs.optimizer.lr,
+        dynamic_lr = cosine_schedule_with_warmup(configs.optimizer.lr)
+        optimizer = nn.SGD(model.parameters(),
+                           learning_rate=dynamic_lr,
                            momentum=configs.optimizer.momentum,
                            weight_decay=configs.optimizer.weight_decay,
                            nesterov=configs.optimizer.nesterov)

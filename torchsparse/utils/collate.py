@@ -1,10 +1,10 @@
 from typing import Any, List
-
 from mindspore import Tensor
 import mindspore as ms
 import mindspore.numpy as mnp
 import mindspore.ops as ops
 import numpy as np
+
 
 from torchsparse import SparseTensor
 
@@ -43,6 +43,8 @@ def sparse_collate_fn(inputs: List[Any]) -> Any:
     if isinstance(inputs[0], dict):
         output = {}
         for name in inputs[0].keys():
+            print('name:', name)
+            print('type:', type(inputs[0][name]))
             if isinstance(inputs[0][name], dict):
                 output[name] = sparse_collate_fn(
                     [input[name] for input in inputs])
