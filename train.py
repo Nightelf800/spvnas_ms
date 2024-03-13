@@ -29,7 +29,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('config', metavar='FILE', help='config file')
     parser.add_argument('--run-dir', metavar='DIR', help='run directory')
-    args, opts = parser.parse_known_args(order.split())
+    args, opts = parser.parse_known_args()
 
 
     configs.load(args.config, recursive=True)

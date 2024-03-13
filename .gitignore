@@ -1,6 +1,7 @@
 .vscode/
 .torch/
 */__pycache__/
+*/build/
 *.pyc
 .idea/
 *.so
