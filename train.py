@@ -121,14 +121,15 @@ def main() -> None:
             visualize_pcd(xyz=pts, target=label)
             cur += n
 
-    # model = builder.make_model().cuda()
+    model = builder.make_model()
     # # if configs.distributed:
     # #     model = torch.nn.parallel.DistributedDataParallel(
     # #         model, device_ids=[dist.local_rank()], find_unused_parameters=True)
     #
     criterion = builder.make_criterion()
-    # optimizer = builder.make_optimizer(model)
+    optimizer = builder.make_optimizer(model)
     # scheduler = builder.make_scheduler(optimizer)
+    trainer = Model(model=model, loss_fn=criterion, optimizer=optimizer)
     #
     # trainer = SemanticKITTITrainer(model=model,
     #                                criterion=criterion,

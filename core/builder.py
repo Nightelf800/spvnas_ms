@@ -2,6 +2,7 @@ from typing import Callable
 from core.utils.config import configs
 import mindspore as ms
 import mindspore.nn as nn
+from core.schedulers import cosine_schedule_with_warmup
 # import torch
 # import torch.optim
 # from torch import nn
@@ -13,7 +14,7 @@ import mindspore.nn as nn
 #     'make_scheduler'
 # ]
 __all__ = [
-    'make_dataset', 'make_criterion',
+    'make_dataset', 'make_criterion', 'make_optimizer'
 ]
 
 def make_dataset():
@@ -27,27 +28,27 @@ def make_dataset():
     return dataset
 
 
-# def make_model():
-#     if configs.model.name == 'minkunet':
-#         from core.models.semantic_kitti import MinkUNet
-#         if 'cr' in configs.model:
-#             cr = configs.model.cr
-#         else:
-#             cr = 1.0
-#         model = MinkUNet(num_classes=configs.data.num_classes, cr=cr)
-#     elif configs.model.name == 'spvcnn':
-#         from core.models.semantic_kitti import SPVCNN
-#         if 'cr' in configs.model:
-#             cr = configs.model.cr
-#         else:
-#             cr = 1.0
-#         model = SPVCNN(num_classes=configs.data.num_classes,
-#                        cr=cr,
-#                        pres=configs.dataset.voxel_size,
-#                        vres=configs.dataset.voxel_size)
-#     else:
-#         raise NotImplementedError(configs.model.name)
-#     return model
+def make_model():
+    if configs.model.name == 'minkunet':
+        from core.models.semantic_kitti import MinkUNet
+        if 'cr' in configs.model:
+            cr = configs.model.cr
+        else:
+            cr = 1.0
+        model = MinkUNet(num_classes=configs.data.num_classes, cr=cr)
+    elif configs.model.name == 'spvcnn':
+        from core.models.semantic_kitti import SPVCNN
+        if 'cr' in configs.model:
+            cr = configs.model.cr
+        else:
+            cr = 1.0
+        model = SPVCNN(num_classes=configs.data.num_classes,
+                       cr=cr,
+                       pres=configs.dataset.voxel_size,
+                       vres=configs.dataset.voxel_size)
+    else:
+        raise NotImplementedError(configs.model.name)
+    return model
 #
 #
 def make_criterion():
@@ -62,8 +63,9 @@ def make_criterion():
 
 def make_optimizer(model):
     if configs.optimizer.name == 'sgd':
+        dynamic_lr = cosine_schedule_with_warmup(configs.optimizer.lr)
         optimizer = nn.SGD(model.parameters(),
-                           learning_rate=configs.optimizer.lr,
+                           learning_rate=dynamic_lr,
                            momentum=configs.optimizer.momentum,
                            weight_decay=configs.optimizer.weight_decay,
                            nesterov=configs.optimizer.nesterov)
@@ -81,23 +83,23 @@ def make_optimizer(model):
         raise NotImplementedError(configs.optimizer.name)
     return optimizer
 
-def make_scheduler(optimizer: Optimizer) -> Scheduler:
-    if configs.scheduler.name == 'none':
-        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-                                                      lr_lambda=lambda epoch: 1)
-    elif configs.scheduler.name == 'cosine':
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=configs.num_epochs)
-    elif configs.scheduler.name == 'cosine_warmup':
-        from functools import partial
-
-        from core.schedulers import cosine_schedule_with_warmup
-        scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optimizer,
-            lr_lambda=partial(cosine_schedule_with_warmup,
-                              num_epochs=configs.num_epochs,
-                              batch_size=configs.batch_size,
-                              dataset_size=configs.data.training_size))
-    else:
-        raise NotImplementedError(configs.scheduler.name)
-    return scheduler
+# def make_scheduler(optimizer: Optimizer) -> Scheduler:
+#     if configs.scheduler.name == 'none':
+#         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+#                                                       lr_lambda=lambda epoch: 1)
+#     elif configs.scheduler.name == 'cosine':
+#         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+#             optimizer, T_max=configs.num_epochs)
+#     elif configs.scheduler.name == 'cosine_warmup':
+#         from functools import partial
+#
+#         from core.schedulers import cosine_schedule_with_warmup
+#         scheduler = torch.optim.lr_scheduler.LambdaLR(
+#             optimizer,
+#             lr_lambda=partial(cosine_schedule_with_warmup,
+#                               num_epochs=configs.num_epochs,
+#                               batch_size=configs.batch_size,
+#                               dataset_size=configs.data.training_size))
+#     else:
+#         raise NotImplementedError(configs.scheduler.name)
+#     return scheduler
