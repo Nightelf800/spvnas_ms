@@ -1,13 +1,11 @@
 import mindspore as ms
+import mindspore.nn as nn
 import mindspore.ops.functional as F
 from mindspore import ops
-from torch.autograd import Function
-from torch.cuda.amp import custom_bwd, custom_fwd
+from mindspore import Tensor
+from torchsparse.nn.cuda.devoxelize import SPDevoxelize
 
-# import torchsparse.backend
-
-# __all__ = ['spdevoxelize', 'calc_ti_weights']
-__all__ = ['calc_ti_weights']
+__all__ = ['spdevoxelize', 'calc_ti_weights']
 
 
 def calc_ti_weights(coords: ms.Tensor,
@@ -53,51 +51,35 @@ def calc_ti_weights(coords: ms.Tensor,
     return w
 
 
-# class DevoxelizeFunction(Function):
+class DevoxelizeFunction(nn.Cell):
+    def __init__(self):
+        super(DevoxelizeFunction, self).__init__()
+        self.sp_devoxelize = SPDevoxelize()
 
-#     @staticmethod
-#     @custom_fwd(cast_inputs=torch.half)
-#     def forward(ctx, feats: torch.Tensor, coords: torch.Tensor,
-#                 weights: torch.Tensor) -> torch.Tensor:
-#         feats = feats.contiguous()
-#         coords = coords.contiguous().int()
-#         weights = weights.contiguous()
+    def construct(self, feats: Tensor, coords: Tensor,
+                weights: Tensor) -> Tensor:
 
-#         if feats.device.type == 'cuda':
-#             output = torchsparse.backend.devoxelize_forward_cuda(
-#                 feats, coords, weights)
-#         elif feats.device.type == 'cpu':
-#             output = torchsparse.backend.devoxelize_forward_cpu(
-#                 feats, coords, weights)
-#         else:
-#             device = feats.device
-#             output = torchsparse.backend.devoxelize_forward_cpu(
-#                 feats.cpu(), coords.cpu(), weights.cpu()).to(device)
+        if feats.device.type == 'cuda':
+            output = self.sp_devoxelize(
+                feats, coords, weights)
+        else:
+            raise NotImplementedError
 
-#         ctx.for_backwards = (coords, weights, feats.shape[0])
-#         return output
-
-#     @staticmethod
-#     @custom_bwd
-#     def backward(ctx, grad_output: torch.Tensor):
-#         coords, weights, input_size = ctx.for_backwards
-#         grad_output = grad_output.contiguous()
-
-#         if grad_output.device.type == 'cuda':
-#             grad_feats = torchsparse.backend.devoxelize_backward_cuda(
-#                 grad_output, coords, weights, input_size)
-#         elif grad_output.device.type == 'cpu':
-#             grad_feats = torchsparse.backend.devoxelize_backward_cpu(
-#                 grad_output, coords, weights, input_size)
-#         else:
-#             device = grad_output.device
-#             grad_feats = torchsparse.backend.devoxelize_backward_cpu(
-#                 grad_output.cpu(), coords.cpu(), weights.cpu(),
-#                 input_size).to(device)
-
-#         return grad_feats, None, None
+        return output
 
 
-# def spdevoxelize(feats: torch.Tensor, coords: torch.Tensor,
-#                  weights: torch.Tensor) -> torch.Tensor:
-#     return DevoxelizeFunction.apply(feats, coords, weights)
+    def bprop(self, feats: Tensor, coords: Tensor,
+                weights: Tensor, output: Tensor, grad_output: Tensor):
+
+        if grad_output.device.type == 'cuda':
+            grad_feats = self.sp_devoxelize(
+                grad_output, coords, weights, feats.shape[0])
+        else:
+            raise NotImplementedError
+
+        return grad_feats, None, None
+
+
+def spdevoxelize(feats: Tensor, coords: Tensor,
+                 weights: Tensor) -> Tensor:
+    return DevoxelizeFunction.apply(feats, coords, weights)

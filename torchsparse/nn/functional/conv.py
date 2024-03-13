@@ -93,8 +93,7 @@ def conv3d(input: SparseTensor,
         kmap = input.kmaps.get((input.stride, kernel_size, stride, dilation))
         if kmap is None:
             offsets = get_kernel_offsets(kernel_size,
-                                         stride=input.stride,
-                                         device=feats.device)
+                                         stride=input.stride)
 
             references = F.sphash(coords)
             if any(s > 1 for s in stride):

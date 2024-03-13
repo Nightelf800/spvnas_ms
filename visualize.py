@@ -10,7 +10,7 @@ import os
 import mayavi.mlab as mlab
 import numpy as np
 import open3d as o3d
-import torch
+from mindspore import Tensor
 from torchsparse import SparseTensor
 from torchsparse.utils.quantize import sparse_quantize
 
@@ -50,8 +50,8 @@ def process_point_cloud(input_point_cloud, input_labels=None, voxel_size=0.05):
     feat = feat_[inds]
     labels = labels_[inds]
     lidar = SparseTensor(
-        torch.from_numpy(feat).float(),
-        torch.from_numpy(pc).int())
+        Tensor.from_numpy(feat).float(),
+        Tensor.from_numpy(pc).int())
     return {
         'pc': out_pc,
         'lidar': lidar,

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <torch/torch.h>
-#include "../ms_ext.h"
+#include "ms_ext.h"
 
 #include <cmath>
 #include <vector>

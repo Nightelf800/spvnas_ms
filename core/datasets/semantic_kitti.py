@@ -2,9 +2,11 @@ import os
 import os.path
 
 import numpy as np
+import mindspore as ms
 from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn
+from torchsparse.utils.collate import sparse_collate_fn, sparse_collate
 from torchsparse.utils.quantize import sparse_quantize
+from core.utils.config import configs
 
 __all__ = ['SemanticKITTI']
 
@@ -55,42 +57,18 @@ kept_labels = [
 class SemanticKITTI(dict):
 
     def __init__(self, root, voxel_size, num_points, **kwargs):
-        submit_to_server = kwargs.get('submit', False)
-        sample_stride = kwargs.get('sample_stride', 1)
-        google_mode = kwargs.get('google_mode', False)
-
-        if submit_to_server:
-            super().__init__({
-                'train':
-                    SemanticKITTIInternal(root,
-                                          voxel_size,
-                                          num_points,
-                                          sample_stride=1,
-                                          split='train',
-                                          submit=True),
-                'test':
-                    SemanticKITTIInternal(root,
-                                          voxel_size,
-                                          num_points,
-                                          sample_stride=1,
-                                          split='test')
-            })
-        else:
-            super().__init__({
-                'train':
-                    SemanticKITTIInternal(root,
-                                          voxel_size,
-                                          num_points,
-                                          sample_stride=1,
-                                          split='train',
-                                          google_mode=google_mode),
-                'test':
-                    SemanticKITTIInternal(root,
-                                          voxel_size,
-                                          num_points,
-                                          sample_stride=sample_stride,
-                                          split='val')
-            })
+        super().__init__({
+            'train':
+                SemanticKITTIInternal(root,
+                                      voxel_size,
+                                      num_points,
+                                      split='train'),
+            'test':
+                SemanticKITTIInternal(root,
+                                      voxel_size,
+                                      num_points,
+                                      split='val')
+        })
 
 
 class SemanticKITTIInternal:
@@ -99,33 +77,19 @@ class SemanticKITTIInternal:
                  root,
                  voxel_size,
                  num_points,
-                 split,
-                 sample_stride=1,
-                 submit=False,
-                 google_mode=True):
-        if submit:
-            trainval = True
-        else:
-            trainval = False
+                 split):
         self.root = root
         self.split = split
         self.voxel_size = voxel_size
         self.num_points = num_points
-        self.sample_stride = sample_stride
-        self.google_mode = google_mode
         self.seqs = []
         if split == 'train':
-            self.seqs = [
-                '00', '01', '02', '03', '04', '05', '06', '07', '09', '10'
-            ]
-            if self.google_mode or trainval:
-                self.seqs.append('08')
+            # self.seqs = ['00', '01', '02', '03', '04', '05', '06', '07', '09', '10']
+            self.seqs = ['00']
         elif self.split == 'val':
-            self.seqs = ['08']
+            self.seqs = ['00']
         elif self.split == 'test':
-            self.seqs = [
-                '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'
-            ]
+            self.seqs = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21']
 
         self.files = []
         for seq in self.seqs:
@@ -135,9 +99,6 @@ class SemanticKITTIInternal:
                 os.path.join(self.root, seq, 'velodyne', x) for x in seq_files
             ]
             self.files.extend(seq_files)
-
-        if self.sample_stride > 1:
-            self.files = self.files[::self.sample_stride]
 
         reverse_label_name_mapping = {}
         self.label_map = np.zeros(260)
@@ -197,8 +158,7 @@ class SemanticKITTIInternal:
         pc_ = np.round(block[:, :3] / self.voxel_size).astype(np.int32)
         pc_ -= pc_.min(0, keepdims=1)
 
-        label_file = self.files[index].replace('velodyne', 'labels').replace(
-            '.bin', '.label')
+        label_file = self.files[index].replace('velodyne', 'labels').replace('.bin', '.label')
         if os.path.exists(label_file):
             with open(label_file, 'rb') as a:
                 all_labels = np.fromfile(a, dtype=np.int32).reshape(-1)
@@ -220,19 +180,62 @@ class SemanticKITTIInternal:
         pc = pc_[inds]
         feat = feat_[inds]
         labels = labels_[inds]
-        lidar = SparseTensor(feat, pc)
-        labels = SparseTensor(labels, pc)
-        labels_ = SparseTensor(labels_, pc_)
-        inverse_map = SparseTensor(inverse_map, pc_)
 
-        return {
-            'lidar': lidar,
-            'targets': labels,
-            'targets_mapped': labels_,
-            'inverse_map': inverse_map,
-            'file_name': self.files[index]
-        }
+        return (pc, feat, labels, pc_, labels_, inverse_map, self.files[index])
+        # lidar = SparseTensor(feat, pc)
+        # labels = SparseTensor(labels, pc)
+        # labels_ = SparseTensor(labels_, pc_)
+        # inverse_map = SparseTensor(inverse_map, pc_)
+
+        # return {
+        #     'lidar': lidar,
+        #     'targets': labels,
+        #     'targets_mapped': labels_,
+        #     'inverse_map': inverse_map,
+        #     'file_name': self.files[index]
+        # }
+        # return (lidar, labels, labels_, inverse_map, self.files[index])
 
     @staticmethod
-    def collate_fn(inputs):
-        return sparse_collate_fn(inputs)
+    def collate_fn(pc, feat, labels, pc_, labels_, inverse_map, file_name, num_vox, num_pts):
+
+        batch = []
+        batch_size = len(pc)
+        file_name_list = str(file_name).split('\n')
+        print('batch size: ', batch_size)
+        for i in range(batch_size):
+            nv = num_vox[i]
+            n = num_pts[i]
+            input_dict = {
+                'lidar': SparseTensor(feat[i], pc[i]),
+                'targets': SparseTensor(labels[i], pc[i]),
+                'targets_mapped': SparseTensor(labels_[i], pc_[i]),
+                'inverse_map': SparseTensor(inverse_map[i], pc_[i]),
+                'file_name': file_name_list[i]
+            }
+            batch.append(input_dict)
+        return sparse_collate_fn(batch)
+
+    @staticmethod
+    def per_batch_map(pc, feat, labels, pc_, labels_, inverse_map, file_name, batchinfo):
+
+        def _pad(data: list, pad_value=-1):
+            # print("len(data):", len(data))
+            # print('before pad:')
+            max_size = data[0].shape[0]
+            for d in data:
+                # print('d.shape:', d.shape)
+                if d.shape[0] > max_size:
+                    max_size = d.shape[0]
+            # print('max_size:', max_size)
+            ds = list(data[0].shape)
+            ds[0] = max_size
+            padded_data = [np.full(shape=ds, fill_value=pad_value, dtype=data[0].dtype) for _ in data]
+            for i, d in enumerate(data):
+                padded_data[i][:d.shape[0]] = d
+            return padded_data
+
+        num_vox = [d.shape[0] for d in pc]
+        num_pts = [d.shape[0] for d in pc_]
+
+        return (_pad(pc), _pad(feat), _pad(labels), _pad(pc_), _pad(labels_), _pad(inverse_map), file_name, num_vox, num_pts)

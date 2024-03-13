@@ -2,7 +2,7 @@ import math
 from typing import List, Tuple, Union
 
 import torch
-from torch import nn
+import torch.nn as nn
 
 from torchsparse import SparseTensor
 
@@ -21,12 +21,12 @@ class ToBEVReduction(nn.Module):
     def extra_repr(self):
         return f'dim = {self.dim}'
 
-    def forward(self, input: SparseTensor) -> SparseTensor:
+    def construct(self, input: SparseTensor) -> SparseTensor:
         coords, feats, stride = input.coords, input.feats, input.stride
 
         coords = coords.clone()
         coords[:, self.dim] = 0
-        feats = torch.cat([torch.ones_like(feats[:, :1]), feats], axis=1)
+        feats = torch.cat([torch.ones_like(feats[:, :1]), feats], dim=1)
         tensor = torch.sparse_coo_tensor(coords.t().long(), feats).to_dense()
         coords = tensor.indices().t().int()
         feats = tensor.values()[:, 1:] / tensor.values()[:, :1]

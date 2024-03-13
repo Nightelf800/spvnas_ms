@@ -12,38 +12,27 @@ __all__ = ['SPVCNN_MS']
 
 class SPVCNN_MS(nn.Cell):
 
-    def __init__(self, inc, outc, ks=3, stride=1, dilation=1):
+    def __init__(self, **kwargs):
         super().__init__()
-        # self.net = nn.SequentialCell(
-        #     spnn.Conv3d(inc,
-        #                 outc,
-        #                 kernel_size=ks,
-        #                 dilation=dilation,
-        #                 stride=stride),
-        #     spnn.BatchNorm(outc),
-        #     spnn.ReLU(True),
-        # )
-        self.pres = 0.05
-        self.vres = 0.05
 
+        cr = kwargs.get('cr', 1.0)
+        cs = [32, 32, 64, 128, 256, 256, 128, 96, 96]
+        cs = [int(cr * x) for x in cs]
+
+        if 'pres' in kwargs and 'vres' in kwargs:
+            self.pres = kwargs['pres']
+            self.vres = kwargs['vres']
+
+        self.net = nn.SequentialCell(
+            spnn.Conv3d(4, cs[0], kernel_size=3, stride=1),
+            spnn.BatchNorm(cs[0]),
+            spnn.ReLU())
 
     def construct(self, x):
-        # x.SparseTensor z: PointTensor
-        sample = np.load("/home/ubuntu/hdd1/mqh/test_custom_pytorch/spvcnn_sample.npz")
-        xf = ms.Tensor(sample['xf'], dtype=ms.float32)
-        xc = ms.Tensor(sample['xc'], dtype=ms.int32)
-        torch_x0f = ms.Tensor(sample['x0f'], dtype=ms.float32)
-        torch_x0c = ms.Tensor(sample['x0c'], dtype=ms.int32)
-        x = SparseTensor(coords=xc, feats=xf)
-
-        z = PointTensor(x.F, x.C.astype(ms.float32))
-
+        z = PointTensor(x.F, x.C.astype('float32'))
+        print(f"before initial_voxelize")
         x0 = initial_voxelize(z, self.pres, self.vres)
-        print(f"x0.F.shape:{x0.F.shape}, x0.F.dtype:{x.F.dtype}")
-        print(f"x0.C.shape:{x0.C.shape}, x0.C.dtype:{x.C.dtype}")
-        print(f"ops.unique(x0.F-torch_x0f):{ops.unique(x0.F-torch_x0f)[0]}")
-        print(f"ops.unique(x0.C-torch_x0c):{ops.unique(x0.C-torch_x0c)[0]}")
+        print(f"iniial_voxelize success")
         exit()
-
-        out = self.net(x)
+        out = self.net(x0)
         return out

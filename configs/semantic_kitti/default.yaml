@@ -9,12 +9,12 @@ train:
 
 dataset:
   name: semantic_kitti
-  root: /dataset/semantic-kitti
+  root: /home/ubuntu/hdd1/stf2/datasets/semantickitti/sequences
   num_points: 80000
   voxel_size: 0.05
 
-num_epochs: 15
-batch_size: 2
+num_epochs: 1
+batch_size: 1
 
 criterion:
   name: cross_entropy
@@ -29,3 +29,6 @@ optimizer:
 
 scheduler:
   name: cosine_warmup
+
+n_gpus: 1
+gpu: ['0']
