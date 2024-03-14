@@ -3,7 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include "../ms_ext.h"
+#include "ms_ext.h"
 
 #include "../hashmap/hashmap_cuda.cuh"
 

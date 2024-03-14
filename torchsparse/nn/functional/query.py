@@ -8,8 +8,7 @@ def sphashquery(queries: ms.Tensor,
     sizes = queries.shape
     queries = queries.view(-1)
 
-    indices = ops.arange(start=0, stop=len(references), rtype=ms.int64)
-
+    indices = ops.arange(start=0, stop=references.shape[0], rtype=ms.int64)
     output = SPHashQuery()(queries, references, indices)
 
     output = (output - 1).view(sizes)

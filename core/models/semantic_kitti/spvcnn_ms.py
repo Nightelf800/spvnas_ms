@@ -1,6 +1,9 @@
-import torchsparse.nn as spnn
+import numpy as np
+import mindspore as ms
 import mindspore.nn as nn
-from torchsparse import PointTensor
+from mindspore import ops
+from torchsparse import nn as spnn
+from torchsparse import PointTensor, SparseTensor
 
 from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 
@@ -26,6 +29,9 @@ class SPVCNN_MS(nn.Cell):
 
     def construct(self, x):
         z = PointTensor(x.F, x.C.astype('float32'))
+        print(f"before initial_voxelize")
         x0 = initial_voxelize(z, self.pres, self.vres)
+        print(f"iniial_voxelize success")
+        # exit()
         out = self.net(x0)
         return out

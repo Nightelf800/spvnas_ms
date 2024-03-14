@@ -29,7 +29,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('config', metavar='FILE', help='config file')
     parser.add_argument('--run-dir', metavar='DIR', help='run directory')
-    args, opts = parser.parse_known_args()
+    args, opts = parser.parse_known_args(order.split())
 
 
     configs.load(args.config, recursive=True)
@@ -127,18 +127,18 @@ def main() -> None:
     #         cur += n
 
     net = builder.make_model()
-    from visualize import visualize_pcd
-    for fd_tuple in dataflow['train'].create_tuple_iterator(output_numpy=True):
-        feed_dict = dataset['train'].collate_fn(*fd_tuple)
-        lidar = feed_dict['lidar']
-        num_vox = [80000, 80000]
-        targets = ms.ops.cast(feed_dict['targets'].F, ms.int64)
-        cur = 0
-        for n in num_vox:
-            pts = lidar.F[cur:cur+n, :3]
-            label = targets[cur:cur+n]
-            visualize_pcd(xyz=pts, target=label)
-            cur += n
+    # from visualize import visualize_pcd
+    # for fd_tuple in dataflow['train'].create_tuple_iterator(output_numpy=True):
+    #     feed_dict = dataset['train'].collate_fn(*fd_tuple)
+    #     lidar = feed_dict['lidar']
+    #     num_vox = [80000, 80000]
+    #     targets = ms.ops.cast(feed_dict['targets'].F, ms.int64)
+    #     cur = 0
+    #     for n in num_vox:
+    #         pts = lidar.F[cur:cur+n, :3]
+    #         label = targets[cur:cur+n]
+    #         visualize_pcd(xyz=pts, target=label)
+    #         cur += n
 
     # # if configs.distributed:
     # #     model = torch.nn.parallel.DistributedDataParallel(

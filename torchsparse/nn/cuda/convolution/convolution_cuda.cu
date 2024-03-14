@@ -170,13 +170,13 @@ void convolution_forward_cuda(at::Tensor in_feat, at::Tensor out_feat,
   }
 }
 
-extern "C" int convolution_forward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
+extern "C" int convolution_transpose_forward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
                                       const char** dtypes, void* stream, void* extra) {
   cudaStream_t custream = static_cast<cudaStream_t>(stream);
   cudaStreamSynchronize(custream);
 
   // transform ms tensor to pytorch tensor
-  bool *transpose = static_cast<bool *>(params[5]);
+  // bool *transpose = static_cast<bool *>(params[5]);
   auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCUDA);
   auto in_feat = tensors[0];
   auto out_feat = tensors[1];
@@ -184,7 +184,29 @@ extern "C" int convolution_forward_ms(int nparam, void** params, int* ndims, int
   auto neighbor_map = tensors[3];
   auto neighbor_offset = tensors[4];
   auto output = tensors[6];
-  // bool transpose = false;
+  bool transpose = true;
+
+  // Do the computation
+  convolution_forward_cuda(in_feat, output, kernel, neighbor_map, neighbor_offset, transpose);
+
+  return 0;
+}
+
+extern "C" int convolution_no_transpose_forward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
+                                      const char** dtypes, void* stream, void* extra) {
+  cudaStream_t custream = static_cast<cudaStream_t>(stream);
+  cudaStreamSynchronize(custream);
+
+  // transform ms tensor to pytorch tensor
+  // bool *transpose = static_cast<bool *>(params[5]);
+  auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCUDA);
+  auto in_feat = tensors[0];
+  auto out_feat = tensors[1];
+  auto kernel = tensors[2];
+  auto neighbor_map = tensors[3];
+  auto neighbor_offset = tensors[4];
+  auto output = tensors[6];
+  bool transpose = false;
 
   // Do the computation
   convolution_forward_cuda(in_feat, output, kernel, neighbor_map, neighbor_offset, transpose);
@@ -306,13 +328,13 @@ void convolution_backward_cuda(at::Tensor in_feat, at::Tensor grad_in_feat,
   }
 }
 
-extern "C" int convolution_backward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
+extern "C" int convolution_transpose_backward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
                                       const char** dtypes, void* stream, void* extra) {
   cudaStream_t custream = static_cast<cudaStream_t>(stream);
   cudaStreamSynchronize(custream);
 
   // transform ms tensor to pytorch tensor
-  bool *transpose = static_cast<bool *>(params[7]);
+  // bool *transpose = static_cast<bool *>(params[7]);
   auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCUDA);
   auto in_feat = tensors[0];
   auto grad_in_feat = tensors[1];
@@ -323,7 +345,33 @@ extern "C" int convolution_backward_ms(int nparam, void** params, int* ndims, in
   auto neighbor_offset = tensors[6];
   auto output_grad_in_feat = tensors[8];
   auto output_grad_kernel = tensors[9];
-  // bool transpose = false;
+  bool transpose = true;
+
+  // Do the computation
+  convolution_backward_cuda(in_feat, output_grad_in_feat, grad_out_feat, kernel,
+                            output_grad_kernel, neighbor_map, neighbor_offset, transpose);
+
+  return 0;
+}
+
+extern "C" int convolution_no_transpose_backward_ms(int nparam, void** params, int* ndims, int64_t** shapes,
+                                      const char** dtypes, void* stream, void* extra) {
+  cudaStream_t custream = static_cast<cudaStream_t>(stream);
+  cudaStreamSynchronize(custream);
+
+  // transform ms tensor to pytorch tensor
+  // bool *transpose = static_cast<bool *>(params[7]);
+  auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCUDA);
+  auto in_feat = tensors[0];
+  auto grad_in_feat = tensors[1];
+  auto grad_out_feat = tensors[2];
+  auto kernel = tensors[3];
+  auto grad_kernel = tensors[4];
+  auto neighbor_map = tensors[5];
+  auto neighbor_offset = tensors[6];
+  auto output_grad_in_feat = tensors[8];
+  auto output_grad_kernel = tensors[9];
+  bool transpose = false;
 
   // Do the computation
   convolution_backward_cuda(in_feat, output_grad_in_feat, grad_out_feat, kernel,

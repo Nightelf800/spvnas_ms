@@ -10,7 +10,8 @@ train:
 dataset:
   name: semantic_kitti
   # dataset path
-  root: /home/nightelf/桌面/datasets/semantic-kitti
+  # root: /home/nightelf/桌面/datasets/semantic-kitti
+  root: /home/ubuntu/hdd1/stf2/datasets/semantickitti/sequences
   num_points: 80000
   voxel_size: 0.05
 
@@ -30,9 +31,6 @@ optimizer:
 
 scheduler:
   name: cosine_warmup
-<<<<<<< HEAD
 
 n_gpus: 1
 gpu: ['0']
-=======
->>>>>>> origin/stf

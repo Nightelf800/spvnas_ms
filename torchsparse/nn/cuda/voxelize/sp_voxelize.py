@@ -2,33 +2,35 @@ from mindspore.nn import Cell
 import mindspore.ops as ops
 from mindspore import context
 
-class SPVoxelize(Cell):
+class SPVoxelizeForward(Cell):
     def __init__(self,):
-        super(SPVoxelize, self).__init__()
+        super(SPVoxelizeForward, self).__init__()
     
         def infer_func(a, b, c):
             return a
         
-        # def back_func(a, b, c, d):
-        #     return a
-        
-        # spvoxelize_back = ops.Custom("./voxelize_cuda.so:voxelize_backward_ms",
-        #                     back_func,
-        #                     back_func,
-        #                     func_type="aot")
-        # def bprop(a, b, c, out, dout):
-        #     dx = spvoxelize_back()
-        #     return dx
-        
-        self.spvoxelize = ops.Custom("./voxelize_cuda.so:voxelize_forward_ms",
+        self.spvoxelize = ops.Custom("torchsparse/nn/cuda/voxelize/voxelize_cuda.so:voxelize_forward_ms",
                             infer_func,
                             infer_func,
-                            func_type="aot",
-                            # bprop=bprop
-                        )
+                            func_type="aot")
     
     def construct(self, inputs, idx, counts):
         return self.spvoxelize(inputs, idx, counts)
+    
+class SPVoxelizeBackward(Cell):
+    def __init__(self,):
+        super(SPVoxelizeBackward, self).__init__()
+    
+        def infer_func(a, b, c, d):
+            return a
+        
+        self.spvoxelize_back = ops.Custom("./voxelize_cuda.so:voxelize_backward_ms",
+                            infer_func,
+                            infer_func,
+                            func_type="aot")
+    
+    def construct(self, grad_output, coords, counts, input_size):
+        return self.spvoxelize_back(grad_output, coords, counts, input_size)
 
 # if __name__ == '__main__':
     # context.set_context(mode=context.PYNATIVE_MODE, device_target='GPU')

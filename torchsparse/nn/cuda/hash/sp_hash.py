@@ -20,12 +20,12 @@ class SPHash(Cell):
             else:
                 return ms.int64
 
-        self.sphash = ops.Custom("./torchsparse/nn/cuda/hash/hash_cuda.so:hash_ms",
+        self.sphash = ops.Custom("torchsparse/nn/cuda/hash/hash_cuda.so:hash_ms",
                                       out_shape=infer_func1,
                                       out_dtype=infer_func1,
                                       func_type="aot")
 
-        self.spkernelhash = ops.Custom("./torchsparse/nn/cuda/hash/hash_cuda.so:kernel_hash_ms",
+        self.spkernelhash = ops.Custom("torchsparse/nn/cuda/hash/hash_cuda.so:kernel_hash_ms",
                                       out_shape=infer_func2,
                                       out_dtype=infer_func2,
                                       func_type="aot")

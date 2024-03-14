@@ -1,9 +1,9 @@
-
-import mindspore.nn as nn
-import mindspore.ops as ops
+import mindspore as ms
 import torchsparse.nn.functional as F
+from mindspore import ops
 from torchsparse import PointTensor, SparseTensor
 from torchsparse.nn.utils import get_kernel_offsets
+import numpy as np
 
 __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
 
@@ -11,18 +11,27 @@ __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
 # z: PointTensor
 # return: SparseTensor
 def initial_voxelize(z, init_res, after_res):
+    print(f"in initial_voxelize")
     new_float_coord = ops.Concat(axis=1)(
         [(z.C[:, :3] * init_res) / after_res, z.C[:, -1].view(-1, 1)])
-
+    print(f"new_float_coord.shape:{new_float_coord.shape}, new_float_coord.dtype:{new_float_coord.dtype}")
     pc_hash = F.sphash(ops.Floor()(new_float_coord).astype('int32'))
-    sparse_hash = ops.Unique()(pc_hash)
+    print(f"pc_hash.shape:{pc_hash.shape}, pc_hash.dtype:{pc_hash.dtype}")
+    sparse_hash = ops.Unique()(pc_hash)[0]
+    print(f"sparse_hash.shape:{sparse_hash.shape}, sparse_hash.dtype:{sparse_hash.dtype}")
+    sparse_hash = ms.Tensor(sparse_hash.asnumpy(), dtype=sparse_hash.dtype)
     idx_query = F.sphashquery(pc_hash, sparse_hash)
-    counts = F.spcount(idx_query.int(), len(sparse_hash))
-
-    inserted_coords = F.spvoxelize(ops.Floor()(new_float_coord), idx_query,
+    print(f"idx_query.shape:{idx_query.shape}, idx_query.dtype:{idx_query.dtype}")
+    counts = F.spcount(idx_query.astype(ms.int32), sparse_hash.shape[0])
+    print(f"counts.shape:{counts.shape}, counts.dtype:{counts.dtype}")
+    print(f"ops.Floor()(new_float_coord).shape:{ops.Floor()(new_float_coord).shape},  ops.Floor()(new_float_coord).dtype:{ops.Floor()(new_float_coord).dtype}")
+    inserted_coords = F.spvoxelize(ops.Floor()(new_float_coord), idx_query.astype(ms.int32),
                                    counts)
-    inserted_coords = ops.UniformReal()(inserted_coords).astype('int32')
-    inserted_feat = F.spvoxelize(z.F, idx_query, counts)
+    print(f"inserted_coords.shape:{counts.shape}, inserted_coords.dtype:{counts.dtype}")
+    inserted_coords = ops.round(inserted_coords).astype('int32')
+    print(f"round inserted_coords.shape:{counts.shape}, inserted_coords.dtype:{counts.dtype}")
+    inserted_feat = F.spvoxelize(z.F, idx_query.astype(ms.int32), counts)
+    print(f"inserted_feat.shape:{inserted_feat.shape}, inserted_feat.dtype:{inserted_feat.dtype}")
 
     new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)
     new_tensor.cmaps.setdefault(new_tensor.stride, new_tensor.coords)
@@ -46,14 +55,14 @@ def point_to_voxel(x, z):
             ]))
         sparse_hash = F.sphash(x.C)
         idx_query = F.sphashquery(pc_hash, sparse_hash)
-        counts = F.spcount(idx_query.int(), x.C.shape[0])
+        counts = F.spcount(idx_query.astype(ms.int32), x.C.shape[0])
         z.additional_features['idx_query'][x.s] = idx_query
         z.additional_features['counts'][x.s] = counts
     else:
         idx_query = z.additional_features['idx_query'][x.s]
         counts = z.additional_features['counts'][x.s]
 
-    inserted_feat = F.spvoxelize(z.F, idx_query, counts)
+    inserted_feat = F.spvoxelize(z.F, idx_query.astype(ms.int32), counts)
     new_tensor = SparseTensor(inserted_feat, x.C, x.s)
     new_tensor.cmaps = x.cmaps
     new_tensor.kmaps = x.kmaps
@@ -75,8 +84,8 @@ def voxel_to_point(x, z, nearest=False):
         pc_hash = F.sphash(x.C.to(z.F.device))
         idx_query = F.sphashquery(old_hash, pc_hash)
         weights = F.calc_ti_weights(z.C, idx_query,
-                                    scale=x.s[0]).transpose(0, 1).contiguous()
-        idx_query = idx_query.transpose(0, 1).contiguous()
+                                    scale=x.s[0]).transpose(0, 1)
+        idx_query = idx_query.transpose(0, 1)
         if nearest:
             weights[:, 1:] = 0.
             idx_query[:, 1:] = -1

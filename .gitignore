@@ -3,5 +3,5 @@
 */__pycache__/
 */build/
 *.pyc
-.idea/
+build/
 *.so

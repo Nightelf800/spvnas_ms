@@ -25,14 +25,23 @@ class SPConvolution(Cell):
         #                     infer_func,
         #                     func_type="aot",
         #                     bprop=bprop)
-        self.spconvolution = ops.Custom("./convolution_cuda.so:convolution_forward_ms",
-                                     out_shape=infer_func,
-                                     out_dtype=infer_func,
-                                     func_type="aot")
+        self.spconvolution_transpose = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_transpose_forward_ms",
+            out_shape=infer_func,
+            out_dtype=infer_func,
+            func_type="aot")
+
+        self.spconvolution_no_transpose = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_no_transpose_forward_ms",
+            out_shape=infer_func,
+            out_dtype=infer_func,
+            func_type="aot")
 
     def construct(self, in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose):
-        print("---cuda_begin---")
-        return self.spconvolution(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose)
+        if transpose:
+            return self.spconvolution_transpose(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose)
+        else:
+            return self.spconvolution_no_transpose(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose)
 
 
 if __name__ == '__main__':
@@ -64,10 +73,10 @@ if __name__ == '__main__':
     print(f"transposed:{transposed}")
     print(f"result.shape:{result.shape}")
 
-    print("---------------test begin----------------")
+    print("------------test convolution--------------")
     test_convolution = SPConvolution()
-    print("-----init successfully-----")
     ms_result = test_convolution(input, output, weight, nbmaps, nbsizes, transposed)
-    print("---------------test end----------------")
+
     print(f"ms_result.shape:{ms_result.shape}")
     print(f"torch_result - ms_result:{result - ms_result}")
+    print(f"ops.unqiue(torch_result - ms_result):{ops.unique(result - ms_result)}")

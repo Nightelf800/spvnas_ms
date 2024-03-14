@@ -66,9 +66,9 @@ def make_criterion():
 
 def make_optimizer(model):
     if configs.optimizer.name == 'sgd':
-        dynamic_lr = cosine_schedule_with_warmup(configs.optimizer.lr)
-        optimizer = nn.SGD(model.parameters(),
-                           learning_rate=dynamic_lr,
+        # dynamic_lr = cosine_schedule_with_warmup(configs.optimizer.lr)
+        optimizer = nn.SGD(model.trainable_params(),
+                           learning_rate=configs.optimizer.lr,
                            momentum=configs.optimizer.momentum,
                            weight_decay=configs.optimizer.weight_decay,
                            nesterov=configs.optimizer.nesterov)

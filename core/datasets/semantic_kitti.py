@@ -220,14 +220,14 @@ class SemanticKITTIInternal:
     def per_batch_map(pc, feat, labels, pc_, labels_, inverse_map, file_name, batchinfo):
 
         def _pad(data: list, pad_value=-1):
-            print("len(data):", len(data))
-            print('before pad:')
+            # print("len(data):", len(data))
+            # print('before pad:')
             max_size = data[0].shape[0]
             for d in data:
-                print('d.shape:', d.shape)
+                # print('d.shape:', d.shape)
                 if d.shape[0] > max_size:
                     max_size = d.shape[0]
-            print('max_size:', max_size)
+            # print('max_size:', max_size)
             ds = list(data[0].shape)
             ds[0] = max_size
             padded_data = [np.full(shape=ds, fill_value=pad_value, dtype=data[0].dtype) for _ in data]
