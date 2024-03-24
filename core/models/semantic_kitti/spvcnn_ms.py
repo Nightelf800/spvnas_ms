@@ -27,11 +27,15 @@ class SPVCNN_MS(nn.Cell):
             spnn.BatchNorm(cs[0]),
             spnn.ReLU())
 
+        self.classifier = nn.SequentialCell([nn.Dense(cs[0], kwargs['num_classes'])])
+
     def construct(self, x):
         z = PointTensor(x.F, x.C.astype('float32'))
         print(f"before initial_voxelize")
         x0 = initial_voxelize(z, self.pres, self.vres)
         print(f"iniial_voxelize success")
         # exit()
-        out = self.net(x0)
+        z0 = self.net(x0)
+        print(f"conv3d success")
+        out = self.classifier(z0.F)
         return out

@@ -24,7 +24,8 @@ def initial_voxelize(z, init_res, after_res):
     print(f"idx_query.shape:{idx_query.shape}, idx_query.dtype:{idx_query.dtype}")
     counts = F.spcount(idx_query.astype(ms.int32), sparse_hash.shape[0])
     print(f"counts.shape:{counts.shape}, counts.dtype:{counts.dtype}")
-    print(f"ops.Floor()(new_float_coord).shape:{ops.Floor()(new_float_coord).shape},  ops.Floor()(new_float_coord).dtype:{ops.Floor()(new_float_coord).dtype}")
+    print(f"ops.Floor()(new_float_coord).shape:{ops.Floor()(new_float_coord).shape},  "
+          f"ops.Floor()(new_float_coord).dtype:{ops.Floor()(new_float_coord).dtype}")
     inserted_coords = F.spvoxelize(ops.Floor()(new_float_coord), idx_query.astype(ms.int32),
                                    counts)
     print(f"inserted_coords.shape:{counts.shape}, inserted_coords.dtype:{counts.dtype}")

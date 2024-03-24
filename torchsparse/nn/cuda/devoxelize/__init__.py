@@ -1,1 +1,2 @@
-from .sp_devoxelize import SPDevoxelize
+from .sp_devoxelize import SPDevoxelizeForward
+from .sp_devoxelize import SPDevoxelizeBackward

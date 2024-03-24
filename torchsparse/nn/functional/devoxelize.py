@@ -3,7 +3,7 @@ import mindspore.nn as nn
 import mindspore.ops.functional as F
 from mindspore import ops
 from mindspore import Tensor
-from torchsparse.nn.cuda.devoxelize import SPDevoxelize
+from torchsparse.nn.cuda.devoxelize import SPDevoxelizeForward, SPDevoxelizeBackward
 
 __all__ = ['spdevoxelize', 'calc_ti_weights']
 
@@ -54,13 +54,14 @@ def calc_ti_weights(coords: ms.Tensor,
 class DevoxelizeFunction(nn.Cell):
     def __init__(self):
         super(DevoxelizeFunction, self).__init__()
-        self.sp_devoxelize = SPDevoxelize()
+        self.sp_devoxelize_forward = SPDevoxelizeForward()
+        self.sp_devoxelize_backward = SPDevoxelizeBackward()
 
     def construct(self, feats: Tensor, coords: Tensor,
                 weights: Tensor) -> Tensor:
 
         if feats.device.type == 'cuda':
-            output = self.sp_devoxelize(
+            output = self.sp_devoxelize_forward(
                 feats, coords, weights)
         else:
             raise NotImplementedError
@@ -72,7 +73,7 @@ class DevoxelizeFunction(nn.Cell):
                 weights: Tensor, output: Tensor, grad_output: Tensor):
 
         if grad_output.device.type == 'cuda':
-            grad_feats = self.sp_devoxelize(
+            grad_feats = self.sp_devoxelize_backward(
                 grad_output, coords, weights, feats.shape[0])
         else:
             raise NotImplementedError
@@ -81,4 +82,4 @@ class DevoxelizeFunction(nn.Cell):
 
 def spdevoxelize(feats: Tensor, coords: Tensor,
                  weights: Tensor) -> Tensor:
-    return DevoxelizeFunction.apply(feats, coords, weights)
+    return DevoxelizeFunction()(feats, coords, weights)

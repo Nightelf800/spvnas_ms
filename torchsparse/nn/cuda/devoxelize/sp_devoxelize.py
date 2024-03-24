@@ -6,25 +6,13 @@ import mindspore.ops as ops
 from mindspore import context
 
 
-class SPDevoxelize(Cell):
+class SPDevoxelizeForward(Cell):
     def __init__(self, ):
-        super(SPDevoxelize, self).__init__()
+        super(SPDevoxelizeForward, self).__init__()
 
         def infer_func(a, b, c):
             return a
 
-        # spvoxelize_back = ops.Custom("./voxelize_cuda.cu:voxelize_backward_ms",
-        #                     infer_func,
-        #                     infer_func,
-        #                     func_type="aot")
-        # def bprop(top_grad, idx, counts, N):
-        #     return spvoxelize_back(top_grad, idx, counts, N)
-
-        # self.spvoxelize = ops.Custom("./voxelize_cuda.cu:voxelize_forward_ms",
-        #                     infer_func,
-        #                     infer_func,
-        #                     func_type="aot",
-        #                     bprop=bprop)
         self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_forward_ms",
                                         out_shape=infer_func,
                                         out_dtype=infer_func,
@@ -32,6 +20,21 @@ class SPDevoxelize(Cell):
 
     def construct(self, feat, indices, weight):
         return self.spdevoxelize(feat, indices, weight)
+
+class SPDevoxelizeBackward(Cell):
+    def __init__(self, ):
+        super(SPDevoxelizeBackward, self).__init__()
+
+        def infer_func(a, b, c):
+            return a
+
+        self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_backward_ms",
+                                       out_shape=infer_func,
+                                       out_dtype=infer_func,
+                                       func_type="aot")
+
+    def construct(self, grad_output, coords, weights, input_size):
+        return self.spdevoxelize(grad_output, coords, weights, input_size)
 
 
 if __name__ == '__main__':

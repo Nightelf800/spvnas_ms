@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict
 import numpy as np
+import mindspore as ms
 import mindspore.nn as nn
 
 from core.datasets.semantic_kitti import SemanticKITTIInternal
@@ -116,8 +117,8 @@ class CustomWithLossCell(nn.Cell):
 
         feed_dict = SemanticKITTIInternal.collate_fn(pc, feat, labels, pc_, labels_, inverse_map, file_name, num_vox, num_pts)
         input = feed_dict['lidar']
-        targets = feed_dict['targets']
+        targets = feed_dict['targets'].F.astype(ms.int64)
 
-        output = self._backbone(input)  # 前向计算得到网络输出
+        output = self._backbone(input).F  # 前向计算得到网络输出
 
-        return self._loss_fn(output, labels)  # 得到多损失值
+        return self._loss_fn(output, targets)  # 得到多损失值

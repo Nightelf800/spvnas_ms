@@ -6,9 +6,9 @@ import mindspore.ops as ops
 from mindspore import context
 
 
-class SPConvolution(Cell):
+class SPConvolutionForward(Cell):
     def __init__(self, ):
-        super(SPConvolution, self).__init__()
+        super(SPConvolutionForward, self).__init__()
 
         def infer_func(a, b, c, d, e, f):
             return b
@@ -42,6 +42,33 @@ class SPConvolution(Cell):
             return self.spconvolution_transpose(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose)
         else:
             return self.spconvolution_no_transpose(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose)
+
+class SPConvolutionBackward(Cell):
+    def __init__(self, ):
+        super(SPConvolutionBackward, self).__init__()
+
+        def infer_func(a, b, c, d, e, f, g, h):
+            return b, e
+
+        self.spconvolution_transpose = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_transpose_backward_ms",
+            out_shape=infer_func,
+            out_dtype=infer_func,
+            func_type="aot")
+
+        self.spconvolution_no_transpose = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_no_transpose_backward_ms",
+            out_shape=infer_func,
+            out_dtype=infer_func,
+            func_type="aot")
+
+    def construct(self, input, grad_input, grad_output, weight, grad_weight, nbmaps, nbsizes, transposed):
+        if transposed:
+            return self.spconvolution_transpose(input, grad_input, grad_output, weight, grad_weight,
+                                                nbmaps, nbsizes, transposed)
+        else:
+            return self.spconvolution_no_transpose(input, grad_input, grad_output, weight, grad_weight,
+                                                   nbmaps, nbsizes, transposed)
 
 
 if __name__ == '__main__':

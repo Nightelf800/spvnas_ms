@@ -148,6 +148,8 @@ def main() -> None:
     optimizer = builder.make_optimizer(net)
     # scheduler = builder.make_scheduler(optimizer)
     loss_net = CustomWithLossCell(net, criterion)
+    # loss_scale_manager = ms.DynamicLossScaleManager()
+    # model = ms.Model(loss_net, amp_level='O2', loss_scale_manager=loss_scale_manager, optimizer=optimizer)
     model = ms.Model(loss_net, optimizer=optimizer)
     model.train(1, dataflow["train"], dataset_sink_mode=False)
 
