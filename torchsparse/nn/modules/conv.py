@@ -65,6 +65,10 @@ class Conv3d(nn.Cell):
         self.kernel = initializer(Uniform(std),
                                   [self.kernel_volume, self.in_channels, self.out_channels],
                                   mindspore.float32)
+        # kernel_np = np.load('./torchsparse/nn/modules/kernel_torch.npy')
+        # self.kernel = mindspore.Tensor(Parameter(kernel_np), dtype=mindspore.float32)
+        print(f"initialize.conv3d.weight: {self.kernel}")
+        print(f"initialize.conv3d.weight.shape: {self.kernel.shape}")
         if self.bias is not None:
             self.bias = initializer(Uniform(std),
                                   [self.out_channels],

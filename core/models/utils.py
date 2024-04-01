@@ -22,7 +22,8 @@ def initial_voxelize(z, init_res, after_res):
     sparse_hash = ms.Tensor(sparse_hash.asnumpy(), dtype=sparse_hash.dtype)
     idx_query = F.sphashquery(pc_hash, sparse_hash)
     print(f"idx_query.shape:{idx_query.shape}, idx_query.dtype:{idx_query.dtype}")
-    counts = F.spcount(idx_query.astype(ms.int32), sparse_hash.shape[0])
+    # counts = F.spcount(ms.Tensor(idx_query.asnumpy(), dtype=ms.int32), sparse_hash.shape[0])
+    _, counts = ms.Tensor(np.unique(idx_query.asnumpy(), return_counts=True), dtype=ms.int32)
     print(f"counts.shape:{counts.shape}, counts.dtype:{counts.dtype}")
     print(f"ops.Floor()(new_float_coord).shape:{ops.Floor()(new_float_coord).shape},  "
           f"ops.Floor()(new_float_coord).dtype:{ops.Floor()(new_float_coord).dtype}")

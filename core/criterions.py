@@ -9,5 +9,6 @@ class CrossEntropyLossWithIgnored(nn.Cell):
         self.ce = nn.SoftmaxCrossEntropyWithLogits(sparse=sparse, reduction=reduction)
 
     def construct(self, logits, labels):
-        valid_index = ms.ops.nonzero(labels != self.ignore_index).flatten()
+        valid_index = ms.ops.nonzero(labels != self.ignore_index)
+        print(f"valid_index_not_flatten: {valid_index.shape}")
         return self.ce(logits[valid_index], labels[valid_index])

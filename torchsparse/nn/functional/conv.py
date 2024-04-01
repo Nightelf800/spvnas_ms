@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Union
-
+import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -38,12 +38,47 @@ class ConvolutionFunction(nn.Cell):
                                  input.dtype)
 
         if get_context("device_target") == 'GPU':
+            print("---------conv execute----------")
+            print(f"input: {input}")
+            print(f"input.shape: {input.shape}, input.dtype: {input.dtype}")
+            print(f"output: {output}")
+            print(f"output.shape: {output.shape}, output.dtype: {output.dtype}")
+            print(f"weight: {weight.data.value}")
+            print(f"weight.shape: {weight.shape}, weight.dtype: {weight.dtype}")
+            print(f"nbmaps: {nbmaps}")
+            print(f"nbmaps.shape: {nbmaps.shape}, nbmaps.dtype: {nbmaps.dtype}")
+            print(f"nbsizes: {nbsizes}")
+            print(f"nbsizes.shape: {nbsizes.shape}, nbsizes.dtype: {nbsizes.dtype}")
             input = Tensor(input.asnumpy(), dtype=input.dtype)
             output = Tensor(output.asnumpy(), dtype=output.dtype)
             weight = Tensor(weight.asnumpy(), dtype=weight.dtype)
             nbmaps = Tensor(nbmaps.asnumpy(), dtype=ms.int32)
-            nbsizes = Tensor(nbmaps.asnumpy(), dtype=ms.int32)
-            output = self.sp_conv_forward(input, output, weight, nbmaps, nbsizes, transposed)
+            nbsizes = Tensor(nbsizes.asnumpy(), dtype=ms.int32)
+
+            # print("----------------compare ms difference-------------")
+            # sample = np.load("../../spvnas_ms/conv_forward_ms1.npz")
+            #
+            # input_ms1 = ms.Tensor(sample["input"], dtype=ms.float32)
+            # output_ms1 = ms.Tensor(sample["output"], dtype=ms.float32)
+            # weight_ms1 = ms.Tensor(sample["weight"], dtype=ms.float32)
+            # nbmaps_ms1 = ms.Tensor(sample["nbmaps"], dtype=ms.int32)
+            # nbsizes_ms1 = ms.Tensor(sample["nbsizes"], dtype=ms.int32)
+            # transposed_ms1 = sample["transposed"].item()
+            #
+            # print(f"input-input_ms1: {ops.unique(input - input_ms1)}")
+            # print(f"output-output_ms1: {ops.unique(output - output_ms1)}")
+            # print(f"weight-weight_ms1: {ops.unique(weight - weight_ms1)}")
+            # print(f"nbmaps-nbmaps_ms1: {ops.unique(nbmaps - nbmaps_ms1)}")
+            # print(f"nbsizes.shape: {nbsizes.shape}")
+            # print(f"nbsizes_ms1.shape: {nbsizes_ms1.shape}")
+            # print(f"nbsizes-nbsizes_ms1: {ops.unique(nbsizes - nbsizes_ms1)}")
+            # print(f"transposed: {transposed}, transposed_ms1: {transposed_ms1}")
+
+
+            output_conv3d = self.sp_conv_forward(input, output, weight, nbmaps, nbsizes, transposed)
+            print(f"conv.output: {output_conv3d}")
+            print(f"conv.output.shape: {output_conv3d.shape}, conv.output.dtype: {output_conv3d.dtype}")
+            print("conv forward success")
         else:
             # use the native pytorch XLA APIs for the TPU.
             cur_st = 0
@@ -60,7 +95,7 @@ class ConvolutionFunction(nn.Cell):
                 cur_feat = ops.MatMul()(cur_feat, weight[kernel_idx])
                 output[out_map] += cur_feat
 
-        return output
+        return output_conv3d
 
     def bprop(self, input, weight, nbmaps, nbsizes, sizes, transposed,
                 output, grad_output):
@@ -104,18 +139,29 @@ def conv3d(input: SparseTensor,
                                          stride=input.stride)
 
             references = F.sphash(coords)
+            print(f"references: {references}")
+            print(f"references.shape: {references.shape}")
             if any(s > 1 for s in stride):
                 coords = F.spdownsample(coords, stride, kernel_size,
                                         input.stride)
             queries = F.sphash(coords, offsets)
+            print(f"queries_sphash.result: {queries}")
+            print(f"queries_sphash.shape: {queries.shape}")
             print(f"-----------sphashquery------------")
+            references = ms.Tensor(references.asnumpy(), dtype=references.dtype)
+            queries = ms.Tensor(queries.asnumpy(), dtype=queries.dtype)
             results = F.sphashquery(queries, references)
             print(f"sphashquery_result: {results}")
             print(f"sphashquery_result.shape: {results.shape}")
             print("-----------------------------------")
 
-            nbsizes = ops.ReduceSum()(results != -1, axis=1)
+            nbsizes = ops.ReduceSum()((results != -1).astype(ms.float32), axis=1)
+            nbsizes = nbsizes.astype(ms.int64)
+            print(f"nbsizes: {nbsizes}")
+            print(f"nbsizes_shape: {nbsizes.shape} nbsizes.dtype: {nbsizes.dtype}")
             nbmaps = (results != -1).nonzero()
+            print("nbmaps.nonzero(): ", nbmaps)
+            print("nbmaps.noznero().shape: ", nbmaps.shape)
 
             nbmaps_nonzero = results.view(-1)[nbmaps[:, 0] * results.shape[1]
                                             + nbmaps[:, 1]]
@@ -130,6 +176,8 @@ def conv3d(input: SparseTensor,
             nbmaps = ops.TensorScatterUpdate()(nbmaps,
                                                nbmaps_index,
                                                nbmaps_nonzero)
+            print("nbmaps_update: ", nbmaps)
+            print("nbmaps_update_shape: ", nbmaps.shape)
 
             kmap = [nbmaps, nbsizes, (feats.shape[0], coords.shape[0])]
             input.kmaps[(input.stride, kernel_size, stride, dilation)] = kmap

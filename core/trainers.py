@@ -119,6 +119,13 @@ class CustomWithLossCell(nn.Cell):
         input = feed_dict['lidar']
         targets = feed_dict['targets'].F.astype(ms.int64)
 
-        output = self._backbone(input).F  # 前向计算得到网络输出
+        print(f"net_loss.backbone.input: {input.F}")
+        print(f"net_loss.backbone.input.shape: {input.F.shape}, net_loss.backbone.input.dtype: {input.F.dtype}")
+
+        output = self._backbone(input)  # 前向计算得到网络输出
+
+        print(f"net_loss.output: {output}")
+        print(f"net_loss.output.shape: {output.shape}, net_loss.output.dtype: {output.dtype}")
+        print(f"net_loss.label.F.shape: {targets.shape}, net_loss.label.F.dtype: {targets.dtype}")
 
         return self._loss_fn(output, targets)  # 得到多损失值

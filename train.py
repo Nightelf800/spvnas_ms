@@ -73,6 +73,7 @@ def main() -> None:
     # seed = configs.train.seed + dist.rank(
     # ) * configs.workers_per_gpu * configs.num_epochs
     seed = configs.train.seed + rank * configs.workers_per_gpu * configs.num_epochs
+    print(f"seed: {seed}")
     random.seed(seed)
     np.random.seed(seed)
     set_seed(seed)

@@ -138,9 +138,11 @@ class SemanticKITTIInternal:
         block = np.zeros_like(block_)
 
         if 'train' in self.split:
-            theta = np.random.uniform(0, 2 * np.pi)
-            print(f"theta: {theta}")
-            scale_factor = np.random.uniform(0.95, 1.05)
+            # theta = np.random.uniform(0, 2 * np.pi)
+            theta = 2.1847802132874214
+            print(f"dataloader.theta: {theta}")
+            # scale_factor = np.random.uniform(0.95, 1.05)
+            scale_factor = 1.0062435768866034
             print(f"scale_factor: {scale_factor}")
             rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
                                 [-np.sin(theta),
@@ -159,6 +161,9 @@ class SemanticKITTIInternal:
         block[:, 3] = block_[:, 3]
         pc_ = np.round(block[:, :3] / self.voxel_size).astype(np.int32)
         pc_ -= pc_.min(0, keepdims=1)
+
+        print(f"dataloader.pc_: {pc_}")
+        print(f"dataloader.pc_.shape: {pc_.shape}")
 
         label_file = self.files[index].replace('velodyne', 'labels').replace('.bin', '.label')
         if os.path.exists(label_file):
