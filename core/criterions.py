@@ -1,5 +1,6 @@
 import mindspore as ms
 import mindspore.nn as nn
+import mindspore.ops as ops
 
 class CrossEntropyLossWithIgnored(nn.Cell):
 
@@ -9,6 +10,10 @@ class CrossEntropyLossWithIgnored(nn.Cell):
         self.ce = nn.SoftmaxCrossEntropyWithLogits(sparse=sparse, reduction=reduction)
 
     def construct(self, logits, labels):
-        valid_index = ms.ops.nonzero(labels != self.ignore_index)
-        print(f"valid_index_not_flatten: {valid_index.shape}")
+        valid_index_trans = (labels != self.ignore_index).astype(ms.int32)
+        valid_index = valid_index_trans.nonzero().flatten()
+
+        print(f"loss.valid_index: {valid_index}")
+        print(f"loss.valid_index.shape: {valid_index.shape}, loss.valid_index.dtype: {valid_index.dtype}")
+
         return self.ce(logits[valid_index], labels[valid_index])

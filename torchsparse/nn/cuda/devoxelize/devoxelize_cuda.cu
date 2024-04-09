@@ -51,6 +51,7 @@ __global__ void devoxelize_backward_kernel(
 #pragma unroll
     for (int k = 0; k < 8; k++) {
       if (indices_[k] >= 0)
+        bottom_grad[indices_[k] * c + j] = 0;
         atomicAdd(&bottom_grad[indices_[k] * c + j], weight_[k] * cur_top_grad);
     }
   }

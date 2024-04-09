@@ -33,4 +33,4 @@ scheduler:
   name: cosine_warmup
 
 n_gpus: 1
-gpu: ['2']
+gpu: ['0']

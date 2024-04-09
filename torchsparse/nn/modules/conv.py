@@ -62,11 +62,11 @@ class Conv3d(nn.Cell):
         std = 1 / math.sqrt(
             (self.out_channels if self.transposed else self.in_channels)
             * self.kernel_volume)
-        self.kernel = initializer(Uniform(std),
-                                  [self.kernel_volume, self.in_channels, self.out_channels],
-                                  mindspore.float32)
-        # kernel_np = np.load('./torchsparse/nn/modules/kernel_torch.npy')
-        # self.kernel = mindspore.Tensor(Parameter(kernel_np), dtype=mindspore.float32)
+        # self.kernel = initializer(Uniform(std),
+        #                           [self.kernel_volume, self.in_channels, self.out_channels],
+        #                           mindspore.float32)
+        kernel_np = np.load('./torchsparse/nn/modules/kernel_torch.npy')
+        self.kernel = mindspore.Tensor(Parameter(kernel_np), dtype=mindspore.float32)
         print(f"initialize.conv3d.weight: {self.kernel}")
         print(f"initialize.conv3d.weight.shape: {self.kernel.shape}")
         if self.bias is not None:

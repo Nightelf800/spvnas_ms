@@ -13,6 +13,20 @@ from torchsparse.nn.cuda.convolution import SPConvolutionForward, SPConvolutionB
 __all__ = ['conv3d']
 
 
+def save_ouptut_data(name, output):
+    print(f"save {name} data: ")
+    np.savez(f'./{name}.npz', output=output.asnumpy())
+    print("save successfully")
+
+def compare_output_data(name, output, dtype):
+    sample = np.load(f"./{name}.npz")
+    print("sample.shape: ", sample["output"].shape, "input.dtype: ", sample["output"].dtype)
+    output_ori = ms.Tensor(sample["output"], dtype=dtype)
+    print(f"compare {name} data: ")
+    print(f"output-output_ori: {ops.unique(output - output_ori)[0]}")
+
+
+
 class ConvolutionFunction(nn.Cell):
     def __init__(self):
         super(ConvolutionFunction, self).__init__()
@@ -55,9 +69,8 @@ class ConvolutionFunction(nn.Cell):
             nbmaps = Tensor(nbmaps.asnumpy(), dtype=ms.int32)
             nbsizes = Tensor(nbsizes.asnumpy(), dtype=ms.int32)
 
-            # print("----------------compare ms difference-------------")
             # sample = np.load("../../spvnas_ms/conv_forward_ms1.npz")
-            #
+
             # input_ms1 = ms.Tensor(sample["input"], dtype=ms.float32)
             # output_ms1 = ms.Tensor(sample["output"], dtype=ms.float32)
             # weight_ms1 = ms.Tensor(sample["weight"], dtype=ms.float32)
@@ -76,6 +89,9 @@ class ConvolutionFunction(nn.Cell):
 
 
             output_conv3d = self.sp_conv_forward(input, output, weight, nbmaps, nbsizes, transposed)
+            # save_ouptut_data("output_conv3d", output_conv3d)
+            # compare_output_data("output_conv3d", output_conv3d, ms.float32)
+
             print(f"conv.output: {output_conv3d}")
             print(f"conv.output.shape: {output_conv3d.shape}, conv.output.dtype: {output_conv3d.dtype}")
             print("conv forward success")
@@ -99,7 +115,7 @@ class ConvolutionFunction(nn.Cell):
 
     def bprop(self, input, weight, nbmaps, nbsizes, sizes, transposed,
                 output, grad_output):
-
+        print("-----------bprop conv3d-------------")
 
         grad_input = ops.ZerosLike(input)
         grad_weight = ops.ZerosLike(weight)
@@ -138,29 +154,40 @@ def conv3d(input: SparseTensor,
             offsets = get_kernel_offsets(kernel_size,
                                          stride=input.stride)
 
+            # save_ouptut_data("coords", coords)
+            # compare_output_data("coords", coords, ms.int64)
+
             references = F.sphash(coords)
-            print(f"references: {references}")
-            print(f"references.shape: {references.shape}")
+            # save_ouptut_data("sphash_references", references)
+            # compare_output_data("sphash_references", references, ms.int64)
+
+            # print(f"references: {references}")
+            print(f"references.shape: {references.shape}, references.dtype: {references.dtype}")
             if any(s > 1 for s in stride):
                 coords = F.spdownsample(coords, stride, kernel_size,
                                         input.stride)
             queries = F.sphash(coords, offsets)
-            print(f"queries_sphash.result: {queries}")
-            print(f"queries_sphash.shape: {queries.shape}")
-            print(f"-----------sphashquery------------")
+            # save_ouptut_data("sphash_queries", queries)
+            # compare_output_data("sphash_queries", queries, ms.int64)
+
+            # print(f"queries_sphash.result: {queries}")
+            print(f"queries_sphash.shape: {queries.shape}, queries_sphash.dtype: {queries.dtype}")
             references = ms.Tensor(references.asnumpy(), dtype=references.dtype)
             queries = ms.Tensor(queries.asnumpy(), dtype=queries.dtype)
             results = F.sphashquery(queries, references)
-            print(f"sphashquery_result: {results}")
-            print(f"sphashquery_result.shape: {results.shape}")
-            print("-----------------------------------")
+            # save_ouptut_data("sphashquery_results", results)
+            # compare_output_data("sphashquery_results", results, ms.int64)
+
+            # print(f"sphashquery_result: {results}")
+            print(f"sphashquery_result.shape: {results.shape}, sphashquery_result.dtype: {results.dtype}")
+            # print(f"sphashquery_result.ops.sphashquery: {ops.unique(results)}")
 
             nbsizes = ops.ReduceSum()((results != -1).astype(ms.float32), axis=1)
             nbsizes = nbsizes.astype(ms.int64)
-            print(f"nbsizes: {nbsizes}")
+            # print(f"nbsizes: {nbsizes}")
             print(f"nbsizes_shape: {nbsizes.shape} nbsizes.dtype: {nbsizes.dtype}")
             nbmaps = (results != -1).nonzero()
-            print("nbmaps.nonzero(): ", nbmaps)
+            # print("nbmaps.nonzero(): ", nbmaps)
             print("nbmaps.noznero().shape: ", nbmaps.shape)
 
             nbmaps_nonzero = results.view(-1)[nbmaps[:, 0] * results.shape[1]
@@ -176,7 +203,7 @@ def conv3d(input: SparseTensor,
             nbmaps = ops.TensorScatterUpdate()(nbmaps,
                                                nbmaps_index,
                                                nbmaps_nonzero)
-            print("nbmaps_update: ", nbmaps)
+            # print("nbmaps_update: ", nbmaps)
             print("nbmaps_update_shape: ", nbmaps.shape)
 
             kmap = [nbmaps, nbsizes, (feats.shape[0], coords.shape[0])]

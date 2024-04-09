@@ -21,6 +21,7 @@ __global__ void voxelize_forward_kernel(int N, int c, int s,
   if (i < N) {
     int pos = idx[i];
     if (pos < 0 || pos >= s || counts[pos] == 0) return;
+    out[pos * c + j] = 0;
     atomicAdd(&out[pos * c + j], data[i * c + j] / float(counts[pos]));
   }
 }
@@ -37,6 +38,7 @@ __global__ void voxelize_backward_kernel(int N, int c, int s,
   if (i < N) {
     int pos = idx[i];
     if (pos < 0 || pos >= s || counts[pos] == 0) return;
+    bottom_grad[i * c + j] = 0;
     atomicAdd(&bottom_grad[i * c + j],
               top_grad[pos * c + j] / float(counts[pos]));
   }

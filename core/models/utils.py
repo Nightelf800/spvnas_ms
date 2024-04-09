@@ -7,6 +7,18 @@ import numpy as np
 
 __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
 
+def save_ouptut_data(name, output):
+    print(f"save {name} data: ")
+    np.savez(f'./{name}.npz', output=output.asnumpy())
+    print("save successfully")
+
+def compare_output_data(name, output, dtype):
+    sample = np.load(f"./{name}.npz")
+    print("sample.shape: ", sample["output"].shape, "input.dtype: ", sample["output"].dtype)
+    output_ori = ms.Tensor(sample["output"], dtype=dtype)
+    print(f"compare {name} data: ")
+    print(f"output-output_ori: {ops.unique(output - output_ori)[0]}")
+
 
 # z: PointTensor
 # return: SparseTensor
@@ -16,23 +28,32 @@ def initial_voxelize(z, init_res, after_res):
         [(z.C[:, :3] * init_res) / after_res, z.C[:, -1].view(-1, 1)])
     print(f"new_float_coord.shape:{new_float_coord.shape}, new_float_coord.dtype:{new_float_coord.dtype}")
     pc_hash = F.sphash(ops.Floor()(new_float_coord).astype('int32'))
+
     print(f"pc_hash.shape:{pc_hash.shape}, pc_hash.dtype:{pc_hash.dtype}")
     sparse_hash = ops.Unique()(pc_hash)[0]
     print(f"sparse_hash.shape:{sparse_hash.shape}, sparse_hash.dtype:{sparse_hash.dtype}")
     sparse_hash = ms.Tensor(sparse_hash.asnumpy(), dtype=sparse_hash.dtype)
     idx_query = F.sphashquery(pc_hash, sparse_hash)
+
     print(f"idx_query.shape:{idx_query.shape}, idx_query.dtype:{idx_query.dtype}")
-    # counts = F.spcount(ms.Tensor(idx_query.asnumpy(), dtype=ms.int32), sparse_hash.shape[0])
-    _, counts = ms.Tensor(np.unique(idx_query.asnumpy(), return_counts=True), dtype=ms.int32)
+    counts = F.spcount(ms.Tensor(idx_query.asnumpy(), dtype=ms.int32), sparse_hash.shape[0])
+    # _, counts = ms.Tensor(np.unique(idx_query.asnumpy(), return_counts=True), dtype=ms.int32)
+    # print(f"counts.ops.unique:{ops.unique(counts)}")
     print(f"counts.shape:{counts.shape}, counts.dtype:{counts.dtype}")
     print(f"ops.Floor()(new_float_coord).shape:{ops.Floor()(new_float_coord).shape},  "
           f"ops.Floor()(new_float_coord).dtype:{ops.Floor()(new_float_coord).dtype}")
     inserted_coords = F.spvoxelize(ops.Floor()(new_float_coord), idx_query.astype(ms.int32),
                                    counts)
+    # save_ouptut_data("spvoxelize_inserted_coords", inserted_coords)
+    # compare_output_data("spvoxelize_inserted_coords", inserted_coords, ms.int32)
+
     print(f"inserted_coords.shape:{counts.shape}, inserted_coords.dtype:{counts.dtype}")
     inserted_coords = ops.round(inserted_coords).astype('int32')
     print(f"round inserted_coords.shape:{counts.shape}, inserted_coords.dtype:{counts.dtype}")
     inserted_feat = F.spvoxelize(z.F, idx_query.astype(ms.int32), counts)
+    # save_ouptut_data("spvoxelize_inserted_feat", inserted_feat)
+    # compare_output_data("spvoxelize_inserted_feat", inserted_feat, ms.float32)
+
     print(f"inserted_feat.shape:{inserted_feat.shape}, inserted_feat.dtype:{inserted_feat.dtype}")
 
     new_tensor = SparseTensor(inserted_feat, inserted_coords, 1)

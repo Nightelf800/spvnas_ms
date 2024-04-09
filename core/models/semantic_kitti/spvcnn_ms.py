@@ -9,6 +9,18 @@ from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 
 __all__ = ['SPVCNN_MS']
 
+def save_ouptut_data(name, output):
+    print(f"save {name} data: ")
+    np.savez(f'./{name}.npz', output=output.asnumpy())
+    print("save successfully")
+
+def compare_output_data(name, output, dtype):
+    sample = np.load(f"./{name}.npz")
+    print("sample.shape: ", sample["output"].shape, "input.dtype: ", sample["output"].dtype)
+    output_ori = ms.Tensor(sample["output"], dtype=dtype)
+    print(f"compare {name} data: ")
+    print(f"output-output_ori: {ops.unique(output - output_ori)[0]}")
+
 
 class SPVCNN_MS(nn.Cell):
     def __init__(self, **kwargs):
@@ -31,7 +43,8 @@ class SPVCNN_MS(nn.Cell):
 
     def construct(self, x):
         print(f"net.input.data: {x.F}")
-        print(f"net.input.data.shape: {x.F.shape}")
+        print(f"net.input.data.shape: {x.F.shape}, net.input.data.dtype: {x.F.dtype}")
+
 
         z = PointTensor(x.F, x.C.astype('float32'))
 
