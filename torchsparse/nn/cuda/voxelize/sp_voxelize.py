@@ -8,7 +8,7 @@ class SPVoxelizeForward(Cell):
     
         def infer_func(a, b, c):
             return a
-        
+
         self.spvoxelize = ops.Custom("torchsparse/nn/cuda/voxelize/voxelize_cuda.so:voxelize_forward_ms",
                             infer_func,
                             infer_func,

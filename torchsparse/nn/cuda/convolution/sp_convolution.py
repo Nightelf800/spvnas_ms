@@ -3,7 +3,7 @@ import numpy as np
 import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
-from mindspore import context
+from mindspore import context, get_context
 
 
 class SPConvolutionForward(Cell):
@@ -25,17 +25,48 @@ class SPConvolutionForward(Cell):
         #                     infer_func,
         #                     func_type="aot",
         #                     bprop=bprop)
+
+        def infer_func_back(a, b, c, d, e, f, g, h):
+            return b, e
+
+        spconvolution_transpose_back = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_transpose_backward_ms",
+            out_shape=infer_func_back,
+            out_dtype=infer_func_back,
+            func_type="aot")
+
+        spconvolution_no_transpose_back = ops.Custom(
+            "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_no_transpose_backward_ms",
+            out_shape=infer_func_back,
+            out_dtype=infer_func_back,
+            func_type="aot")
+
+        def bprop(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose, out, grad_output):
+            print("-----------bprop conv3d-------------")
+            grad_input = ops.ZerosLike(in_feat)
+            grad_weight = ops.ZerosLike(kernel)
+            back_func = spconvolution_transpose_back if transpose else spconvolution_no_transpose_back
+            if get_context("device_target") == 'GPU':
+                grad_input, grad_weight = back_func(
+                    in_feat, grad_input, grad_output, kernel,
+                    grad_weight, neighbor_map, neighbor_offset, transpose)
+            else:
+                raise NotImplementedError
+            return grad_input, None, grad_weight, None, None, None
+
         self.spconvolution_transpose = ops.Custom(
             "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_transpose_forward_ms",
             out_shape=infer_func,
             out_dtype=infer_func,
-            func_type="aot")
+            func_type="aot",
+            bprop=bprop)
 
         self.spconvolution_no_transpose = ops.Custom(
             "./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_no_transpose_forward_ms",
             out_shape=infer_func,
             out_dtype=infer_func,
-            func_type="aot")
+            func_type="aot",
+            bprop=bprop)
 
     def construct(self, in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose):
         if transpose:
@@ -63,6 +94,7 @@ class SPConvolutionBackward(Cell):
             func_type="aot")
 
     def construct(self, input, grad_input, grad_output, weight, grad_weight, nbmaps, nbsizes, transposed):
+        print('run SPConvolutionBackward')
         if transposed:
             return self.spconvolution_transpose(input, grad_input, grad_output, weight, grad_weight,
                                                 nbmaps, nbsizes, transposed)

@@ -28,7 +28,7 @@ class VoxelizeFunction(nn.Cell):
         grad_feats = self.sp_voxelize_backward(
             grad_output, coords, counts, input_size)
 
-        return (grad_feats, )
+        return (grad_feats, None, None)
 
 
 def spvoxelize(feats: Tensor, coords: Tensor,

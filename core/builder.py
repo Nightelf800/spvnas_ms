@@ -58,7 +58,7 @@ def make_criterion():
     if configs.criterion.name == 'cross_entropy':
         from core.criterions import CrossEntropyLossWithIgnored
         criterion = CrossEntropyLossWithIgnored(
-            sparse=True, reduction='none', ignore_index=configs.criterion.ignore_index
+            sparse=True, reduction='mean', ignore_index=configs.criterion.ignore_index
         )
     else:
         raise NotImplementedError(configs.criterion.name)

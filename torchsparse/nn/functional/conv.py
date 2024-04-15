@@ -52,17 +52,17 @@ class ConvolutionFunction(nn.Cell):
                                  input.dtype)
 
         if get_context("device_target") == 'GPU':
-            print("---------conv execute----------")
-            print(f"input: {input}")
-            print(f"input.shape: {input.shape}, input.dtype: {input.dtype}")
-            print(f"output: {output}")
-            print(f"output.shape: {output.shape}, output.dtype: {output.dtype}")
-            print(f"weight: {weight.data.value}")
-            print(f"weight.shape: {weight.shape}, weight.dtype: {weight.dtype}")
-            print(f"nbmaps: {nbmaps}")
-            print(f"nbmaps.shape: {nbmaps.shape}, nbmaps.dtype: {nbmaps.dtype}")
-            print(f"nbsizes: {nbsizes}")
-            print(f"nbsizes.shape: {nbsizes.shape}, nbsizes.dtype: {nbsizes.dtype}")
+            # print("---------conv execute----------")
+            # print(f"input: {input}")
+            # print(f"input.shape: {input.shape}, input.dtype: {input.dtype}")
+            # print(f"output: {output}")
+            # print(f"output.shape: {output.shape}, output.dtype: {output.dtype}")
+            # print(f"weight: {weight.data.value}")
+            # print(f"weight.shape: {weight.shape}, weight.dtype: {weight.dtype}")
+            # print(f"nbmaps: {nbmaps}")
+            # print(f"nbmaps.shape: {nbmaps.shape}, nbmaps.dtype: {nbmaps.dtype}")
+            # print(f"nbsizes: {nbsizes}")
+            # print(f"nbsizes.shape: {nbsizes.shape}, nbsizes.dtype: {nbsizes.dtype}")
             input = Tensor(input.asnumpy(), dtype=input.dtype)
             output = Tensor(output.asnumpy(), dtype=output.dtype)
             weight = Tensor(weight.asnumpy(), dtype=weight.dtype)
@@ -92,9 +92,9 @@ class ConvolutionFunction(nn.Cell):
             # save_ouptut_data("output_conv3d", output_conv3d)
             # compare_output_data("output_conv3d", output_conv3d, ms.float32)
 
-            print(f"conv.output: {output_conv3d}")
-            print(f"conv.output.shape: {output_conv3d.shape}, conv.output.dtype: {output_conv3d.dtype}")
-            print("conv forward success")
+            # print(f"conv.output: {output_conv3d}")
+            # print(f"conv.output.shape: {output_conv3d.shape}, conv.output.dtype: {output_conv3d.dtype}")
+            # print("conv forward success")
         else:
             # use the native pytorch XLA APIs for the TPU.
             cur_st = 0
@@ -113,20 +113,20 @@ class ConvolutionFunction(nn.Cell):
 
         return output_conv3d
 
-    def bprop(self, input, weight, nbmaps, nbsizes, sizes, transposed,
-                output, grad_output):
-        print("-----------bprop conv3d-------------")
-
-        grad_input = ops.ZerosLike(input)
-        grad_weight = ops.ZerosLike(weight)
-
-        if get_context("device_target") == 'GPU':
-            grad_input, grad_weight = self.sp_conv_backward(
-                input, grad_input, grad_output, weight,
-                grad_weight, nbmaps, nbsizes, transposed)
-        else:
-            raise NotImplementedError
-        return grad_input, grad_weight, None, None, None, None
+    # def bprop(self, input, weight, nbmaps, nbsizes, sizes, transposed,
+    #             output, grad_output):
+    #     print("-----------bprop conv3d-------------")
+    #
+    #     grad_input = ops.ZerosLike(input)
+    #     grad_weight = ops.ZerosLike(weight)
+    #
+    #     if get_context("device_target") == 'GPU':
+    #         grad_input, grad_weight = self.sp_conv_backward(
+    #             input, grad_input, grad_output, weight,
+    #             grad_weight, nbmaps, nbsizes, transposed)
+    #     else:
+    #         raise NotImplementedError
+    #     return grad_input, grad_weight, None, None, None, None
 
 
 def conv3d(input: SparseTensor,
