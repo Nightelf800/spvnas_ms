@@ -124,8 +124,8 @@ class CustomWithLossCell(nn.Cell):
 
         output = self._backbone(input)  # 前向计算得到网络输出
 
-        print(f"net_loss.output: {output}")
-        print(f"net_loss.output.shape: {output.shape}, net_loss.output.dtype: {output.dtype}")
-        print(f"net_loss.label.F.shape: {targets.shape}, net_loss.label.F.dtype: {targets.dtype}")
+        # print(f"net_loss.output: {output}")
+        # print(f"net_loss.output.shape: {output.shape}, net_loss.output.dtype: {output.dtype}")
+        # print(f"net_loss.label.F.shape: {targets.shape}, net_loss.label.F.dtype: {targets.dtype}")
 
         return self._loss_fn(output, targets)  # 得到多损失值

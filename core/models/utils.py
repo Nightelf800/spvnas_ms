@@ -98,13 +98,13 @@ def point_to_voxel(x, z):
 def voxel_to_point(x, z, nearest=False):
     if z.idx_query is None or z.weights is None or z.idx_query.get(
             x.s) is None or z.weights.get(x.s) is None:
-        off = get_kernel_offsets(2, x.s, 1, device=z.F.device)
+        off = get_kernel_offsets(2, x.s, 1)
         old_hash = F.sphash(
             ops.Concat(axis=1)([
                 ops.Floor()(z.C[:, :3] / x.s[0]).int() * x.s[0],
                 z.C[:, -1].int().view(-1, 1)
             ]), off)
-        pc_hash = F.sphash(x.C.to(z.F.device))
+        pc_hash = F.sphash(x.C)
         idx_query = F.sphashquery(old_hash, pc_hash)
         weights = F.calc_ti_weights(z.C, idx_query,
                                     scale=x.s[0]).transpose(0, 1)

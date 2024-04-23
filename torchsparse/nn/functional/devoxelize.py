@@ -60,7 +60,7 @@ class DevoxelizeFunction(nn.Cell):
     def construct(self, feats: Tensor, coords: Tensor,
                 weights: Tensor) -> Tensor:
 
-        if feats.device.type == 'cuda':
+        if ms.get_context("device_target") == 'GPU':
             output = self.sp_devoxelize_forward(
                 feats, coords, weights)
         else:
@@ -72,7 +72,7 @@ class DevoxelizeFunction(nn.Cell):
     def bprop(self, feats: Tensor, coords: Tensor,
                 weights: Tensor, output: Tensor, grad_output: Tensor):
 
-        if grad_output.device.type == 'cuda':
+        if ms.get_context("device_target") == 'cuda':
             grad_feats = self.sp_devoxelize_backward(
                 grad_output, coords, weights, feats.shape[0])
         else:

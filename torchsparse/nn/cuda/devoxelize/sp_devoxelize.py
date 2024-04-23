@@ -13,7 +13,7 @@ class SPDevoxelizeForward(Cell):
         def infer_func(a, b, c):
             return a
 
-        self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_forward_ms",
+        self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_forward_ms",
                                         out_shape=infer_func,
                                         out_dtype=infer_func,
                                         func_type="aot")
@@ -28,7 +28,7 @@ class SPDevoxelizeBackward(Cell):
         def infer_func(a, b, c):
             return a
 
-        self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_backward_ms",
+        self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",
                                        out_shape=infer_func,
                                        out_dtype=infer_func,
                                        func_type="aot")

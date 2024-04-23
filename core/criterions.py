@@ -18,5 +18,5 @@ class CrossEntropyLossWithIgnored(nn.Cell):
 
         # return self.ce(logits[valid_index], labels[valid_index])
         ce = self.ce(logits, labels)
-        print('=============ce: %f ================' % ce)
+        # print('=============ce: %f ================' % ce)
         return ce
