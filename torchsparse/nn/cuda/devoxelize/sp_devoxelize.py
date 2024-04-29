@@ -3,20 +3,53 @@ import numpy as np
 import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
-from mindspore import context
+from mindspore import context, get_context
 
+
+
+def bprop():
+    def infer_func_back(a, b, c, d):
+        return a
+
+    sp_devoxelize_backward = ops.Custom(
+        "./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",
+        out_shape=infer_func_back,
+        out_dtype=infer_func_back,
+        func_type="aot")
+    def devoxelize_bprop(feat, indices, weight, out, grad_output):
+        input_size = ops.Zeros()((feat.shape[0]), ms.int32)
+        # grad_feats = sp_devoxelize_backward(
+        #     grad_output, indices.astype(ms.int32), weight, feat.shape[0])
+        grad_feats = sp_devoxelize_backward(
+            grad_output, indices.astype(ms.int32), weight, input_size)
+        return (grad_feats,)
+
+    if get_context("device_target") == 'GPU':
+        return devoxelize_bprop
+    else:
+        print('only support GPU')
+        return None
 
 class SPDevoxelizeForward(Cell):
     def __init__(self, ):
         super(SPDevoxelizeForward, self).__init__()
 
         def infer_func(a, b, c):
-            return a
+            if isinstance(a, list):
+                return [b[0], a[1]]
+            else:
+                return a
 
         self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_forward_ms",
-                                        out_shape=infer_func,
-                                        out_dtype=infer_func,
-                                        func_type="aot")
+                                       out_shape=infer_func,
+                                       out_dtype=infer_func,
+                                       func_type="aot",
+                                       bprop=bprop())
+        # self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_forward_ms",
+        #                                out_shape=infer_func,
+        #                                out_dtype=infer_func,
+        #                                func_type="aot",
+        #                                bprop=bprop())
 
     def construct(self, feat, indices, weight):
         return self.spdevoxelize(feat, indices, weight)
@@ -40,7 +73,7 @@ class SPDevoxelizeBackward(Cell):
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/devoxelize_forward_sample.npz")
+    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/devoxelize_forward_sample.npz")
     
     print("x.type: ", sample["x"].dtype)
     print("idx_query.type: ", sample["idx_query"].dtype)
@@ -57,7 +90,7 @@ if __name__ == '__main__':
     print(f"weights.shape:{weights.shape}")
     print(f"new_feat.shape:{new_feat.shape}")
 
-    test_devoxelize = SPDevoxelize()
+    test_devoxelize = SPDevoxelizeForward()
     ms_result = test_devoxelize(input, idx_query, weights)
 
     print(f"ms_result.shape:{ms_result.shape}")

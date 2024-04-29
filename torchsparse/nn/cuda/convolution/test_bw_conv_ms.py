@@ -14,7 +14,7 @@ class SPConvolution(Cell):
             return b, e
 
 
-        self.spconvolution = ops.Custom("./convolution_cuda.so:convolution_backward_ms",
+        self.spconvolution = ops.Custom("./convolution_cuda.so:convolution_no_transpose_backward_ms",
                                         out_shape=infer_func,
                                         out_dtype=infer_func,
                                         func_type="aot")
@@ -27,7 +27,7 @@ class SPConvolution(Cell):
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/conv_backward_sample.npz")
+    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/conv_backward_sample.npz")
 
     print("input.type: ", sample["input"].dtype)
     print("grad_input.type: ", sample["grad_input"].dtype)

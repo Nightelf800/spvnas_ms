@@ -62,22 +62,22 @@ class DevoxelizeFunction(nn.Cell):
 
         if ms.get_context("device_target") == 'GPU':
             output = self.sp_devoxelize_forward(
-                feats, coords, weights)
+                feats, coords.astype(ms.int32), weights)
         else:
             raise NotImplementedError
 
         return output
 
 
-    def bprop(self, feats: Tensor, coords: Tensor,
-                weights: Tensor, output: Tensor, grad_output: Tensor):
-
-        if ms.get_context("device_target") == 'cuda':
-            grad_feats = self.sp_devoxelize_backward(
-                grad_output, coords, weights, feats.shape[0])
-        else:
-            raise NotImplementedError
-        return grad_feats, None, None
+    # def bprop(self, feats: Tensor, coords: Tensor,
+    #             weights: Tensor, output: Tensor, grad_output: Tensor):
+    #
+    #     if ms.get_context("device_target") == 'GPU':
+    #         grad_feats = self.sp_devoxelize_backward(
+    #             grad_output, coords.astype(ms.int32), weights, feats.shape[0])
+    #     else:
+    #         raise NotImplementedError
+    #     return grad_feats, None, None
 
 
 def spdevoxelize(feats: Tensor, coords: Tensor,

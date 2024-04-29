@@ -10,7 +10,7 @@ class SPDevoxelize(Cell):
     def __init__(self, ):
         super(SPDevoxelize, self).__init__()
 
-        def infer_func(a, b, c):
+        def infer_func(a, b, c, d):
             return a
 
         # spvoxelize_back = ops.Custom("./voxelize_cuda.cu:voxelize_backward_ms",
@@ -31,13 +31,14 @@ class SPDevoxelize(Cell):
                                        func_type="aot")
 
     def construct(self, grad_output, coords, weights, input_size):
-        return self.spdevoxelize(grad_output, coords, weights, input_size)
+        input_size = ops.Zeros()((grad_output.shape[0]), ms.int32)
+        return self.spdevoxelize(grad_output, coords.astype(ms.int32), weights, input_size)
 
 
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/devoxelize_backward_sample.npz")
+    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/devoxelize_backward_sample.npz")
 
     print("grad_output.type: ", sample["grad_output"].dtype)
     print("coords.type: ", sample["coords"].dtype)
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     grad_output = ms.Tensor(sample["grad_output"], dtype=ms.float32)
     coords = ms.Tensor(sample["coords"], dtype=ms.float32)
     weights = ms.Tensor(sample["weights"], dtype=ms.float32)
-    input_size = sample["input_size"].itme()
+    input_size = sample["input_size"].item()
     grad_feats = ms.Tensor(sample["grad_feats"], dtype=ms.float32)
 
     print(f"grad_output.shape:{grad_output.shape}")
@@ -60,4 +61,5 @@ if __name__ == '__main__':
     ms_result = test_devoxelize(grad_output, coords, weights, input_size)
 
     print(f"ms_result.shape:{ms_result.shape}")
-    print(f"ms_result - new_feat:{ms_result - new_feat}")
+    print(f"ms_result - new_feat:{ms_result - grad_feats}")
+    print(f"unique(ms_result - new_feat):{np.unique(ms_result.asnumpy() - grad_feats.asnumpy())}")

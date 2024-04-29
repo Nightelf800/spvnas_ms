@@ -1,18 +1,42 @@
 from mindspore.nn import Cell
 import mindspore.ops as ops
-from mindspore import context
+from mindspore import context, get_context
+import mindspore as ms
 
 class SPVoxelizeForward(Cell):
     def __init__(self,):
         super(SPVoxelizeForward, self).__init__()
     
         def infer_func(a, b, c):
-            return a
+            if isinstance(a, list):
+                return [c[0], a[1]]
+            else:
+                return a
+
+        def bprop(inputs, idx, counts, out, grad_output):
+
+            if get_context("device_target") == 'GPU':
+                def infer_func_back(a, b, c, d):
+                    return a
+
+                sp_voxelize_backward = ops.Custom("torchsparse/nn/cuda/voxelize/voxelize_cuda.so:voxelize_backward_ms",
+                                                  infer_func_back,
+                                                  infer_func_back,
+                                                  func_type="aot")
+
+                input_size = ops.Zeros()((inputs.shape[0]), ms.int32)
+                grad_feats = sp_voxelize_backward(
+                    grad_output, idx, counts, input_size)
+            else:
+                raise NotImplementedError
+
+            return (grad_feats, None, None)
 
         self.spvoxelize = ops.Custom("torchsparse/nn/cuda/voxelize/voxelize_cuda.so:voxelize_forward_ms",
-                            infer_func,
-                            infer_func,
-                            func_type="aot")
+                                     infer_func,
+                                     infer_func,
+                                     func_type="aot",
+                                     bprop=bprop)
     
     def construct(self, inputs, idx, counts):
         return self.spvoxelize(inputs, idx, counts)

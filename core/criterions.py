@@ -16,7 +16,6 @@ class CrossEntropyLossWithIgnored(nn.Cell):
         # print(f"loss.valid_index: {valid_index}")
         # print(f"loss.valid_index.shape: {valid_index.shape}, loss.valid_index.dtype: {valid_index.dtype}")
 
-        # return self.ce(logits[valid_index], labels[valid_index])
-        ce = self.ce(logits, labels)
-        # print('=============ce: %f ================' % ce)
+        ce = self.ce(logits[valid_index], labels[valid_index])
+        print('=============ce: %f ================' % ce)
         return ce

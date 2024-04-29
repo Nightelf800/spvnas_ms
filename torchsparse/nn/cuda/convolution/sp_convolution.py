@@ -4,6 +4,7 @@ import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
 from mindspore import context, get_context
+from mindspore.ops import CustomRegOp
 
 
 class SPConvolutionForward(Cell):

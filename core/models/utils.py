@@ -107,8 +107,8 @@ def voxel_to_point(x, z, nearest=False):
         pc_hash = F.sphash(x.C)
         idx_query = F.sphashquery(old_hash, pc_hash)
         weights = F.calc_ti_weights(z.C, idx_query,
-                                    scale=x.s[0]).transpose(0, 1)
-        idx_query = idx_query.transpose(0, 1)
+                                    scale=x.s[0]).swapaxes(0, 1)
+        idx_query = idx_query.swapaxes(0, 1)
         if nearest:
             weights[:, 1:] = 0.
             idx_query[:, 1:] = -1
@@ -117,12 +117,15 @@ def voxel_to_point(x, z, nearest=False):
                                  z.C,
                                  idx_query=z.idx_query,
                                  weights=z.weights)
+        # new_tensor = PointTensor(x.F,
+        #                          z.C,
+        #                          idx_query=z.idx_query,
+        #                          weights=z.weights)
         new_tensor.additional_features = z.additional_features
         new_tensor.idx_query[x.s] = idx_query
         new_tensor.weights[x.s] = weights
         z.idx_query[x.s] = idx_query
         z.weights[x.s] = weights
-
     else:
         new_feat = F.spdevoxelize(x.F, z.idx_query.get(x.s), z.weights.get(x.s))
         new_tensor = PointTensor(new_feat,

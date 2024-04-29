@@ -23,12 +23,12 @@ class VoxelizeFunction(nn.Cell):
 
         return output
 
-    def bprop(self, feats, coords, counts, output, grad_output):
-        input_size = ops.Zeros()((feats.shape[0]), ms.int32)
-        grad_feats = self.sp_voxelize_backward(
-            grad_output, coords, counts, input_size)
-
-        return (grad_feats, None, None)
+    # def bprop(self, feats, coords, counts, output, grad_output):
+    #     input_size = ops.Zeros()((feats.shape[0]), ms.int32)
+    #     grad_feats = self.sp_voxelize_backward(
+    #         grad_output, coords, counts, input_size)
+    #
+    #     return (grad_feats, None, None)
 
 
 def spvoxelize(feats: Tensor, coords: Tensor,

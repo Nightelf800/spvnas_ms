@@ -120,15 +120,17 @@ extern "C" int devoxelize_backward_ms(int nparam, void** params, int* ndims, int
   cudaStreamSynchronize(custream);
 
   // transform ms tensor to pytorch tensor
-  int *n = static_cast<int *>(params[3]);
+  // int *n = static_cast<int *>(params[3]);
   auto tensors = get_torch_tensors(nparam, params, ndims, shapes, dtypes, c10::kCUDA);
   auto top_grad = tensors[0];
   auto indices = tensors[1];
   auto weight = tensors[2];
+  auto n = tensors[3].size(0);
   auto output = tensors[4];
 
   // Do the computation
-  devoxelize_backward_cuda(top_grad, indices, weight, *n, output);
+  // devoxelize_backward_cuda(top_grad, indices, weight, *n, output);
+  devoxelize_backward_cuda(top_grad, indices, weight, n, output);
 
   return 0;
 }
