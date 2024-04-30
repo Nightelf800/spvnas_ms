@@ -3,6 +3,7 @@ import numpy as np
 import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
+from mindspore.ops import CustomRegOp, DataType
 from mindspore import context, get_context
 
 
@@ -19,6 +20,7 @@ def bprop():
         out_shape=infer_func_back,
         out_dtype=infer_func_back,
         func_type="aot")
+
     def devoxelize_bprop(feat, indices, weight, out, grad_output):
         input_size = ops.Zeros()((feat.shape[0]), ms.int32)
         # grad_feats = sp_devoxelize_backward(
@@ -33,6 +35,7 @@ def bprop():
         print('only support GPU')
         return None
 
+
 class SPDevoxelizeForward(Cell):
     def __init__(self, ):
         super(SPDevoxelizeForward, self).__init__()
@@ -43,11 +46,22 @@ class SPDevoxelizeForward(Cell):
             else:
                 return a
 
+        devoxelize_forward_cuda_info = CustomRegOp("DevoxelizeForward") \
+            .input(0, "feat", "required") \
+            .input(0, "indices", "required") \
+            .input(0, "weight", "required") \
+            .output(0, "output_feat", "required") \
+            .dtype_format(DataType.F32_Default, DataType.I32_Default,
+                          DataType.F32_Default, DataType.F32_Default) \
+            .target("GPU") \
+            .get_op_info()
+
         self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_forward_ms",
                                        out_shape=infer_func,
                                        out_dtype=infer_func,
                                        func_type="aot",
-                                       bprop=bprop())
+                                       bprop=bprop(),
+                                       reg_info=devoxelize_forward_cuda_info)
         # self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_forward_ms",
         #                                out_shape=infer_func,
         #                                out_dtype=infer_func,
@@ -74,9 +88,10 @@ class SPDevoxelizeBackward(Cell):
 
 
 if __name__ == '__main__':
+    os.environ["MS_CUSTOM_AOT_WHITE_LIST"] = "./torchsparse/nn/cuda"
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/devoxelize_forward_sample.npz")
+    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/devoxelize_forward_sample.npz")
     
     print("x.type: ", sample["x"].dtype)
     print("idx_query.type: ", sample["idx_query"].dtype)
@@ -97,4 +112,4 @@ if __name__ == '__main__':
     ms_result = test_devoxelize(input, idx_query, weights)
 
     print(f"ms_result.shape:{ms_result.shape}")
-    print(f"ms_result - new_feat:{ms_result - new_feat}")
+    print(f"ops.unique(ms_result - new_feat):{ops.unique(ms_result - new_feat)}")
