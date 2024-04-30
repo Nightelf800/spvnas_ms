@@ -77,6 +77,8 @@ def main() -> None:
     random.seed(seed)
     np.random.seed(seed)
     set_seed(seed)
+    # configs.dataset.name = 'dummy_kitti'
+    # print('=====================using dummpy_kitti==================================')
     dataset = builder.make_dataset()
     dataflow = {}
     for split in dataset:

@@ -9,7 +9,10 @@ from mindspore import context, get_context
 
 def bprop():
     def infer_func_back(a, b, c, d):
-        return a
+        if isinstance(a, list):
+            return [d[0], a[1]]
+        else:
+            return a
 
     sp_devoxelize_backward = ops.Custom(
         "./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",

@@ -24,6 +24,10 @@ def make_dataset():
         dataset = SemanticKITTI(root=configs.dataset.root,
                                 num_points=configs.dataset.num_points,
                                 voxel_size=configs.dataset.voxel_size)
+    elif configs.dataset.name == 'dummy_kitti':
+        from core.datasets import DummyKITTI
+        dataset = DummyKITTI(num_points=configs.dataset.num_points,
+                             voxel_size=configs.dataset.voxel_size)
     else:
         raise NotImplementedError(configs.dataset.name)
     return dataset
