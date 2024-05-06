@@ -3,6 +3,7 @@ import numpy as np
 import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
+from mindspore.ops import CustomRegOp, DataType
 from mindspore import context
 
 
@@ -12,6 +13,18 @@ class SPDevoxelize(Cell):
 
         def infer_func(a, b, c, d):
             return a
+
+        devoxelize_backward_cuda_info = CustomRegOp("DevoxelizeBackward") \
+            .input(0, "grad_output", "required") \
+            .input(0, "coords", "required") \
+            .input(0, "weights", "required") \
+            .input(0, "input_size", "required") \
+            .output(0, "grad_feats", "required") \
+            .dtype_format(DataType.F32_Default, DataType.I32_Default,
+                          DataType.F32_Default, DataType.I32_Default,
+                          DataType.F32_Default) \
+            .target("GPU") \
+            .get_op_info()
 
         # spvoxelize_back = ops.Custom("./voxelize_cuda.cu:voxelize_backward_ms",
         #                     infer_func,
@@ -25,10 +38,11 @@ class SPDevoxelize(Cell):
         #                     infer_func,
         #                     func_type="aot",
         #                     bprop=bprop)
-        self.spdevoxelize = ops.Custom("./devoxelize_cuda.so:devoxelize_backward_ms",
+        self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",
                                        out_shape=infer_func,
                                        out_dtype=infer_func,
-                                       func_type="aot")
+                                       func_type="aot",
+                                       reg_info=devoxelize_backward_cuda_info)
 
     def construct(self, grad_output, coords, weights, input_size):
         input_size = ops.Zeros()((grad_output.shape[0]), ms.int32)
@@ -38,7 +52,8 @@ class SPDevoxelize(Cell):
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/devoxelize_backward_sample.npz")
+    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/devoxelize_backward_sample.npz")
+
 
     print("grad_output.type: ", sample["grad_output"].dtype)
     print("coords.type: ", sample["coords"].dtype)
@@ -62,4 +77,4 @@ if __name__ == '__main__':
 
     print(f"ms_result.shape:{ms_result.shape}")
     print(f"ms_result - new_feat:{ms_result - grad_feats}")
-    print(f"unique(ms_result - new_feat):{np.unique(ms_result.asnumpy() - grad_feats.asnumpy())}")
+    print(f"unique(ms_result - new_feat):{ops.unique(ms_result - grad_feats)}")

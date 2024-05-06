@@ -3,6 +3,7 @@ import numpy as np
 import mindspore as ms
 from mindspore.nn import Cell
 import mindspore.ops as ops
+from mindspore.ops import CustomRegOp, DataType
 from mindspore import context
 
 
@@ -13,11 +14,31 @@ class SPConvolution(Cell):
         def infer_func(a, b, c, d, e, f, g, h):
             return b, e
 
+        conv_backward_cuda_info = CustomRegOp("ConvBackward") \
+            .input(0, "in_feat", "required") \
+            .input(0, "grad_input", "required") \
+            .input(0, "grad_output", "required") \
+            .input(0, "kernel", "required") \
+            .input(0, "grad_weight", "required") \
+            .input(0, "neighbor_map", "required") \
+            .input(0, "neighbor_offset", "required") \
+            .input(0, "transpose", "required") \
+            .output(0, "output1", "required") \
+            .output(0, "output2", "required") \
+            .dtype_format(DataType.F32_Default, DataType.F32_Default,
+                          DataType.F32_Default, DataType.F32_Default,
+                          DataType.F32_Default, DataType.I32_Default,
+                          DataType.I32_Default, DataType.BOOL_Default,
+                          DataType.F32_Default, DataType.F32_Default) \
+            .target("GPU") \
+            .get_op_info()
 
-        self.spconvolution = ops.Custom("./convolution_cuda.so:convolution_no_transpose_backward_ms",
+
+        self.spconvolution = ops.Custom("./torchsparse/nn/cuda/convolution/convolution_cuda.so:convolution_no_transpose_backward_ms",
                                         out_shape=infer_func,
                                         out_dtype=infer_func,
-                                        func_type="aot")
+                                        func_type="aot",
+                                        reg_info=conv_backward_cuda_info)
 
     def construct(self, input, grad_input, grad_output, weight, grad_weight, nbmaps, nbsizes, transposed):
         print("---cuda_begin---")
@@ -27,7 +48,7 @@ class SPConvolution(Cell):
 if __name__ == '__main__':
     context.set_context(device_target='GPU')
 
-    sample = np.load("/home/stf/workspace/codes/spvnas_ms/examples/conv_backward_sample.npz")
+    sample = np.load("/home/ubuntu/hdd1/ylc/codes/torchsparse-1.4.0/examples/conv_backward_sample.npz")
 
     print("input.type: ", sample["input"].dtype)
     print("grad_input.type: ", sample["grad_input"].dtype)
@@ -69,5 +90,5 @@ if __name__ == '__main__':
     print("---------------test end----------------")
     print(f"ms_result_grad_input.shape:{ms_result_grad_input.shape}")
     print(f"ms_result_grad_weight.shape:{ms_result_grad_weight.shape}")
-    print(f"torch_result - ms_result:{result_grad_input - ms_result_grad_input}")
-    print(f"torch_result - ms_result:{result_grad_weight - ms_result_grad_weight}")
+    print(f"ops.unique(torch_result - ms_result):{ops.unique(result_grad_input - ms_result_grad_input)}")
+    print(f"ops.unique(torch_result - ms_result):{ops.unique(result_grad_weight - ms_result_grad_weight)}")
