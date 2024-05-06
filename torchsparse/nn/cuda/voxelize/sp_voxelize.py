@@ -2,10 +2,23 @@ from mindspore.nn import Cell
 import mindspore.ops as ops
 from mindspore import context, get_context
 import mindspore as ms
+from mindspore.ops import DataType, CustomRegOp
 
-class SPVoxelizeForward(Cell):
+class SPVoxelize(Cell):
     def __init__(self,):
-        super(SPVoxelizeForward, self).__init__()
+        super(SPVoxelize, self).__init__()
+
+        voxelize_forward_cuda_info = CustomRegOp("voxelize_kernel_cuda") \
+            .input(0, "a") \
+            .input(0, "b") \
+            .input(0, "c") \
+            .output(0, "o") \
+            .dtype_format(DataType.F32_Default, 
+                          DataType.I32_Default, 
+                          DataType.I32_Default, 
+                          DataType.F32_Default) \
+            .target("GPU") \
+            .get_op_info()
     
         def infer_func(a, b, c):
             if isinstance(a, list):
@@ -19,10 +32,25 @@ class SPVoxelizeForward(Cell):
                 def infer_func_back(a, b, c, d):
                     return a
 
+                voxelize_backward_cuda_info = CustomRegOp("voxelize_kernel_cuda") \
+                    .input(0, "a") \
+                    .input(0, "b") \
+                    .input(0, "c") \
+                    .input(0, "d") \
+                    .output(0, "o") \
+                    .dtype_format(DataType.F32_Default, 
+                                  DataType.I32_Default, 
+                                  DataType.I32_Default, 
+                                  DataType.F32_Default, 
+                                  DataType.F32_Default) \
+                    .target("GPU") \
+                    .get_op_info()
+
                 sp_voxelize_backward = ops.Custom("torchsparse/nn/cuda/voxelize/voxelize_cuda.so:voxelize_backward_ms",
                                                   infer_func_back,
                                                   infer_func_back,
-                                                  func_type="aot")
+                                                  func_type="aot",
+                                                  reg_info=voxelize_backward_cuda_info,)
 
                 input_size = ops.Zeros()((inputs.shape[0]), ms.int32)
                 grad_feats = sp_voxelize_backward(
@@ -36,25 +64,12 @@ class SPVoxelizeForward(Cell):
                                      infer_func,
                                      infer_func,
                                      func_type="aot",
-                                     bprop=bprop)
+                                     bprop=bprop,
+                                     reg_info=voxelize_forward_cuda_info)
     
     def construct(self, inputs, idx, counts):
         return self.spvoxelize(inputs, idx, counts)
-    
-class SPVoxelizeBackward(Cell):
-    def __init__(self,):
-        super(SPVoxelizeBackward, self).__init__()
-    
-        def infer_func(a, b, c, d):
-            return a
-        
-        self.spvoxelize_back = ops.Custom("./voxelize_cuda.so:voxelize_backward_ms",
-                            infer_func,
-                            infer_func,
-                            func_type="aot")
-    
-    def construct(self, grad_output, coords, counts, input_size):
-        return self.spvoxelize_back(grad_output, coords, counts, input_size)
+
 
 # if __name__ == '__main__':
     # context.set_context(mode=context.PYNATIVE_MODE, device_target='GPU')

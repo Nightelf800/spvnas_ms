@@ -3,11 +3,23 @@ from mindspore.nn import Cell
 import numpy as np
 import mindspore as ms
 import mindspore.ops as ops
-
+from mindspore.ops import DataType, CustomRegOp
 
 class SPHashQuery(Cell):
     def __init__(self,):
         super(SPHashQuery, self).__init__()
+
+        hashquery_cuda_info = CustomRegOp("hashquery_kernel_cuda") \
+            .input(0, "a") \
+            .input(0, "b") \
+            .input(0, "c") \
+            .output(0, "o") \
+            .dtype_format(DataType.I64_Default, 
+                          DataType.I64_Default,
+                          DataType.I64_Default,
+                          DataType.I64_Default) \
+            .target("GPU") \
+            .get_op_info()
     
         def infer_func(a, b, c):
             return a
@@ -15,7 +27,8 @@ class SPHashQuery(Cell):
         self.sphashquery = ops.Custom("torchsparse/nn/cuda/others/query_cuda.so:hash_query_ms",
                                       out_shape=infer_func,
                                       out_dtype=infer_func,
-                                      func_type="aot")
+                                      func_type="aot",
+                                      reg_info=hashquery_cuda_info)
     
     def construct(self, queries, references, indices):
         return self.sphashquery(queries, references, indices)

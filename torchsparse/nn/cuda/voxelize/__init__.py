@@ -1,1 +1,1 @@
-from .sp_voxelize import SPVoxelizeForward, SPVoxelizeBackward
+from .sp_voxelize import SPVoxelize

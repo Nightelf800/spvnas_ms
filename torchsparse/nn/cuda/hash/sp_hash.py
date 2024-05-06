@@ -1,12 +1,32 @@
-from mindspore import context
-from mindspore.nn import Cell
+import os
 import numpy as np
 import mindspore as ms
 import mindspore.ops as ops
+from mindspore import context
+from mindspore.nn import Cell
+from mindspore.ops import DataType, CustomRegOp
 
 class SPHash(Cell):
     def __init__(self,):
         super(SPHash, self).__init__()
+
+        hash_cuda_info = CustomRegOp("hash_cuda") \
+            .input(0, "a") \
+            .output(0, "o") \
+            .dtype_format(DataType.I32_Default,
+                          DataType.I64_Default) \
+            .target("GPU") \
+            .get_op_info()
+
+        kernelhash_cuda_info = CustomRegOp("hash_kernel_cuda") \
+            .input(0, "a") \
+            .input(0, "b") \
+            .output(0, "o") \
+            .dtype_format(DataType.I32_Default, 
+                          DataType.I32_Default,
+                          DataType.I64_Default) \
+            .target("GPU") \
+            .get_op_info()
     
         def infer_func1(a):
             if isinstance(a, list):
@@ -23,12 +43,14 @@ class SPHash(Cell):
         self.sphash = ops.Custom("torchsparse/nn/cuda/hash/hash_cuda.so:hash_ms",
                                       out_shape=infer_func1,
                                       out_dtype=infer_func1,
-                                      func_type="aot")
+                                      func_type="aot",
+                                      reg_info=hash_cuda_info)
 
         self.spkernelhash = ops.Custom("torchsparse/nn/cuda/hash/hash_cuda.so:kernel_hash_ms",
                                       out_shape=infer_func2,
                                       out_dtype=infer_func2,
-                                      func_type="aot")
+                                      func_type="aot",
+                                      reg_info=kernelhash_cuda_info)
     
     def construct(self, coords, offsets=None):
         if offsets is None:

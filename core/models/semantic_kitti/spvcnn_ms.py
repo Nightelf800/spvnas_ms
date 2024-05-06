@@ -212,6 +212,7 @@ class SPVCNN_MS(nn.Cell):
 
         x1 = point_to_voxel(x0, z0)
         x1 = self.stage1(x1)
+        exit()
         x2 = self.stage2(x1)
         x3 = self.stage3(x2)
         x4 = self.stage4(x3)
