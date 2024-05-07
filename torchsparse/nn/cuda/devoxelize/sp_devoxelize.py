@@ -15,11 +15,24 @@ def bprop():
         else:
             return a
 
+    devoxelize_backward_cuda_info = CustomRegOp("DevoxelizeBackward") \
+        .input(0, "grad_output", "required") \
+        .input(0, "coords", "required") \
+        .input(0, "weights", "required") \
+        .input(0, "input_size", "required") \
+        .output(0, "grad_feats", "required") \
+        .dtype_format(DataType.F32_Default, DataType.I32_Default,
+                      DataType.F32_Default, DataType.I32_Default,
+                      DataType.F32_Default) \
+        .target("GPU") \
+        .get_op_info()
+
     sp_devoxelize_backward = ops.Custom(
         "./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",
         out_shape=infer_func_back,
         out_dtype=infer_func_back,
-        func_type="aot")
+        func_type="aot",
+        reg_info=devoxelize_backward_cuda_info)
 
     def devoxelize_bprop(feat, indices, weight, out, grad_output):
         input_size = ops.Zeros()((feat.shape[0]), ms.int32)
@@ -77,6 +90,8 @@ class SPDevoxelizeBackward(Cell):
 
         def infer_func(a, b, c):
             return a
+
+
 
         self.spdevoxelize = ops.Custom("./torchsparse/nn/cuda/devoxelize/devoxelize_cuda.so:devoxelize_backward_ms",
                                        out_shape=infer_func,
