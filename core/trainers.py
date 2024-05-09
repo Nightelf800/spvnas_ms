@@ -4,8 +4,8 @@ import mindspore as ms
 import mindspore.nn as nn
 
 from core.datasets.semantic_kitti import SemanticKITTIInternal
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn
+from mindsparse import SparseTensor
+from mindsparse.utils.collate import sparse_collate_fn
 
 # import torch
 # from torch import nn

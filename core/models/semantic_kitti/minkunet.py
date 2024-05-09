@@ -1,8 +1,8 @@
 
 import mindspore
 import mindspore.nn as nn
-import torchsparse
-import torchsparse.nn as spnn
+import mindsparse
+import mindsparse.nn as spnn
 
 __all__ = ['MinkUNet']
 

@@ -3,9 +3,9 @@ import mindspore as ms
 import mindspore.nn as nn
 from mindspore.common.initializer import initializer, Constant
 from mindspore import ops
-import torchsparse
-from torchsparse import nn as spnn
-from torchsparse import PointTensor, SparseTensor
+import mindsparse
+from mindsparse import nn as spnn
+from mindsparse import PointTensor, SparseTensor
 
 from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 
@@ -204,15 +204,22 @@ class SPVCNN_MS(nn.Cell):
         # x: SparseTensor z: PointTensor
         z = PointTensor(x.F, x.C.float())
 
+        print(f"----------------initial_voxelize---------------------")
+        print(f"z.F:{z.F}")
+        print(f"z.C:{z.C}")
         x0 = initial_voxelize(z, self.pres, self.vres)
+        print(f"----------------initial_voxelize---------------------")
 
+        print(f"----------------stem---------------------")
         x0 = self.stem(x0)
+        print(f"----------------stem---------------------")
+        print(f"----------------voxel_to_point---------------------")
         z0 = voxel_to_point(x0, z, nearest=False)
+        print(f"----------------voxel_to_point---------------------")
         z0.F = z0.F
 
         x1 = point_to_voxel(x0, z0)
         x1 = self.stage1(x1)
-        exit()
         x2 = self.stage2(x1)
         x3 = self.stage3(x2)
         x4 = self.stage4(x3)
@@ -222,11 +229,11 @@ class SPVCNN_MS(nn.Cell):
         y1 = point_to_voxel(x4, z1)
         y1.F = self.dropout(y1.F)
         y1 = self.up1[0](y1)
-        y1 = torchsparse.cat([y1, x3])
+        y1 = mindsparse.cat([y1, x3])
         y1 = self.up1[1](y1)
 
         y2 = self.up2[0](y1)
-        y2 = torchsparse.cat([y2, x2])
+        y2 = mindsparse.cat([y2, x2])
         y2 = self.up2[1](y2)
         z2 = voxel_to_point(y2, z1)
         z2.F = z2.F + self.point_transforms[1](z1.F)
@@ -234,11 +241,11 @@ class SPVCNN_MS(nn.Cell):
         y3 = point_to_voxel(y2, z2)
         y3.F = self.dropout(y3.F)
         y3 = self.up3[0](y3)
-        y3 = torchsparse.cat([y3, x1])
+        y3 = mindsparse.cat([y3, x1])
         y3 = self.up3[1](y3)
 
         y4 = self.up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
+        y4 = mindsparse.cat([y4, x0])
         y4 = self.up4[1](y4)
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)

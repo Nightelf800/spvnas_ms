@@ -4,9 +4,9 @@ from collections import OrderedDict, deque
 
 import torch
 import torch.nn as nn
-import torchsparse
-import torchsparse.nn as spnn
-from torchsparse import PointTensor, SparseTensor
+import mindsparse
+import mindsparse.nn as spnn
+from mindsparse import PointTensor, SparseTensor
 
 from core.models.utils import point_to_voxel, voxel_to_point
 from core.modules.layers import (DynamicConvolutionBlock,

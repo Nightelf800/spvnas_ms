@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-import torchsparse.nn as spnn
+import mindsparse.nn as spnn
 
 from core.modules.dynamic_op import DynamicBatchNorm, DynamicLinear
 from core.modules.dynamic_sparseop import (SparseDynamicBatchNorm,

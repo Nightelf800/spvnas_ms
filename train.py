@@ -57,7 +57,7 @@ def main() -> None:
                             device_id=int(configs.gpu[0]))
         # is_distributed = False
         # recorder = Recorder(settings, settings.save_path)
-    cuda_path = os.path.join(os.path.dirname(__file__), "torchsparse/nn/cuda")
+    cuda_path = os.path.join(os.path.dirname(__file__), "mindsparse/nn/cuda")
     os.environ["MS_CUSTOM_AOT_WHITE_LIST"] = cuda_path
     # if args.run_dir is None:
     #     args.run_dir = auto_set_run_dir()

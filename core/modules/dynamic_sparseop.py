@@ -4,8 +4,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchsparse.nn.functional as spf
-from torchsparse import SparseTensor
+import mindsparse.nn.functional as spf
+from mindsparse import SparseTensor
 
 __all__ = ['make_divisible', 'SparseDynamicConv3d', 'SparseDynamicBatchNorm']
 

@@ -1,7 +1,7 @@
-import torchsparse
-import torchsparse.nn as spnn
+import mindsparse
+import mindsparse.nn as spnn
 from torch import nn
-from torchsparse import PointTensor
+from mindsparse import PointTensor
 
 from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 

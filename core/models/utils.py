@@ -1,8 +1,8 @@
 import mindspore as ms
-import torchsparse.nn.functional as F
+import mindsparse.nn.functional as F
 from mindspore import ops
-from torchsparse import PointTensor, SparseTensor
-from torchsparse.nn.utils import get_kernel_offsets
+from mindsparse import PointTensor, SparseTensor
+from mindsparse.nn.utils import get_kernel_offsets
 import numpy as np
 
 __all__ = ['initial_voxelize', 'point_to_voxel', 'voxel_to_point']
