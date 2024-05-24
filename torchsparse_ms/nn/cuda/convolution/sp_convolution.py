@@ -82,7 +82,7 @@ class SPConvolutionForward(Cell):
             reg_info=conv_backward_cuda_info)
 
         def bprop(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose, out, grad_output):
-            print("-----------bprop conv3d-------------")
+            # print("-----------bprop conv3d-------------")
             # print(f'in_feat: {in_feat}')
             # print(f'in_feat.shape: {in_feat.shape}')
             # print(f'out_feat: {out_feat}')
@@ -104,7 +104,9 @@ class SPConvolutionForward(Cell):
                     grad_weight, neighbor_map, neighbor_offset, transpose)
             else:
                 raise NotImplementedError
-            return (grad_input, grad_weight,)
+            # return (grad_input, grad_weight,)
+            return grad_input, grad_weight, ops.zeros_like(kernel), ops.zeros_like(neighbor_map), ops.zeros_like(
+                neighbor_offset)
 
         self.spconvolution_transpose = ops.Custom(
             "./torchsparse_ms/nn/cuda/convolution/convolution_cuda.so:convolution_transpose_forward_ms",

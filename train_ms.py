@@ -8,6 +8,7 @@ from mindspore.amp import DynamicLossScaler
 from mindspore.common.initializer import initializer
 from mindspore.train.amp import auto_mixed_precision
 
+from core.callbacks import MeanIoU
 from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 from core.schedulers import cosine_schedule_with_warmup
 from torchsparse_ms import PointTensor, SparseTensor
@@ -167,6 +168,7 @@ def main():
     ce_ops = CrossEntropyLossWithIgnored(sparse=True, reduction='mean', ignore_index=255)
     # loss_scaler = DynamicLossScaler(scale_value=2 ** 10, scale_factor=2, scale_window=50)
     optimizer = builder.make_optimizer(net, dy_lr_list)
+    max_miou = 0
 
     # net = SPVCNN_MS()
     def forward_fn(x, y):
@@ -186,7 +188,7 @@ def main():
             loss, grad = grad_fn(lidar, targets)
             # loss = loss_scaler.unscale(loss)
             optimizer(grad)
-            print(f'-------------------after opitmizer-----------------\n')
+            # print(f'-------------------after opitmizer-----------------\n')
             isexit = False
             for i, grad_sig in enumerate(grad):
                 if (np.isnan(grad_sig.asnumpy()).any()):  # Checking for nan values
@@ -204,8 +206,33 @@ def main():
             )
             print(result_line)
 
+    def test_loop(epoch_idx):
+        num_batches = dataflow['test'].get_dataset_size()
+        net.set_train(False)
+        test_loss = 0
+        miou = MeanIoU(configs.data.num_classes, configs.data.ignore_label)
+        for batch_idx, fd_tuple in enumerate(dataflow['test'].create_tuple_iterator(output_numpy=True)):
+            feed_dict = dataset['train'].collate_fn(*fd_tuple)
+            lidar = feed_dict['lidar']
+            targets = feed_dict['targets'].F.astype(ms.int64)
+
+            output = net(lidar)
+            test_loss += ce_ops(output, targets)
+            miou.update(output, targets)
+
+        test_loss /= num_batches
+        miou, ious = miou.get_iou()
+        print(f'ious: {ious}')
+        print(f'Test: Epoch: [{epoch_idx}] mIOU: {(100 * miou):>0.1f}%, Avg Loss: {test_loss} \n')
+        return miou
+
     for epoch_idx in range(configs.num_epochs):
         train_loop(epoch_idx)
+        miou = test_loop(epoch_idx)
+        if max_miou < miou:
+            max_miou = miou
+            ms.save_checkpoint(net, "model.ckpt")
+            print(f'save model weight successfully')
 
     print('Done !')
 

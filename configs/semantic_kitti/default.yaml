@@ -11,11 +11,11 @@ dataset:
   name: semantic_kitti
   # dataset path
   # root: /home/share/semantickitti/sequences/
-  root: ./datasets/semantickitti/sequences/
+  root: /home/share/semantickitti/sequences/
   num_points: 80000
   voxel_size: 0.05
 
-num_epochs: 1
+num_epochs: 5
 batch_size: 1
 
 criterion:
@@ -24,7 +24,7 @@ criterion:
 
 optimizer:
   name: sgd
-  lr: 2.4e-1
+  lr: 4.8e-1
   weight_decay: 1.0e-4
   momentum: 0.9
   nesterov: true
@@ -33,4 +33,4 @@ scheduler:
   name: cosine_warmup
 
 n_gpus: 1
-gpu: ['0']
+gpu: ['1']

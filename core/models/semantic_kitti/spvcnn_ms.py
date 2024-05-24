@@ -471,20 +471,25 @@ class SPVCNN_MS(nn.Cell):
 
         x0 = initial_voxelize(z, self.pres, self.vres)
 
-        print(f'before stem: ')
-        print(f'x0.F: {x0.F.shape}')
-        print(f'x0.C: {x0.C.shape}')
-        # x0 = self.stem(x0)
-        x0.F = self.dense1(x0.F)
+        # print(f'before stem: ')
+        # print(f'x0.F: {x0.F.shape}')
+        # print(f'x0.C: {x0.C.shape}')
+        x0 = self.stem(x0)
+        # x0.F = self.dense1(x0.F)
 
-        print(f'after stem: ')
-        print(f'x0.F: {x0.F.shape}')
-        print(f'x0.C: {x0.C.shape}')
+        # print(f'after stem: ')
+        # print(f'x0.F: {x0.F.shape}')
+        # print(f'x0.C: {x0.C.shape}')
 
         z0 = voxel_to_point(x0, z, nearest=False)
         z0.F = z0.F
         # print(f'z0.F: {z0.F}')
         # print(f'z0.F.shape: {z0.F.shape}')
+        if (np.isnan(z0.F.asnumpy()).any()):  # Checking for nan values
+            print("np.isnan name: z0.F",
+                  '\n-------------------------------------------\n',
+                  z0.F)  # Prints an index of samples with nan values
+            exit()
 
         x1 = point_to_voxel(x0, z0)
         # print(f'x1.F: {x1.F}')
@@ -492,6 +497,11 @@ class SPVCNN_MS(nn.Cell):
         x1 = self.stage1(x1)
         # print(f'x1.2.F: {x1.F}')
         # print(f'x1.2.F.shape: {x1.F.shape}')
+        if (np.isnan(x1.F.asnumpy()).any()):  # Checking for nan values
+            print("np.isnan name: stage1.F",
+                  '\n-------------------------------------------\n',
+                  x1.F)  # Prints an index of samples with nan values
+            exit()
 
         x2 = self.stage2(x1)
         # print(f'x2.F: {x2.F}')

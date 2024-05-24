@@ -27,7 +27,7 @@ class SPVoxelize(Cell):
                 return a
 
         def bprop(inputs, idx, counts, out, grad_output):
-            print("-----------bprop voxelize-------------")
+            # print("-----------bprop voxelize-------------")
             if get_context("device_target") == 'GPU':
                 def infer_func_back(a, b, c, d):
                     if isinstance(a, list):

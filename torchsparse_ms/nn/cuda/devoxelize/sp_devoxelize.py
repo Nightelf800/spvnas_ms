@@ -35,7 +35,7 @@ def bprop():
         reg_info=devoxelize_backward_cuda_info)
 
     def devoxelize_bprop(feat, indices, weight, out, grad_output):
-        print("-----------bprop devoxelize-------------")
+        # print("-----------bprop devoxelize-------------")
         input_size = ops.Zeros()((feat.shape[0]), ms.int32)
         # grad_feats = sp_devoxelize_backward(
         #     grad_output, indices.astype(ms.int32), weight, feat.shape[0])
