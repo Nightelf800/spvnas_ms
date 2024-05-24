@@ -12,6 +12,7 @@ from core.utils.local_adapter import execute_distributed, distributed
 from core.trainers import CustomWithLossCell
 
 import numpy as np
+import torch
 # from torchpack import distributed as dist
 # from torchpack.callbacks import InferenceRunner, MaxSaver, Saver
 # from torchpack.environ import auto_set_run_dir, set_run_dir
@@ -26,6 +27,7 @@ order = "configs/semantic_kitti/spvcnn/cr0p5.yaml --distributed False"
 
 
 def main() -> None:
+    torch.cuda.set_device(2)
     parser = argparse.ArgumentParser()
     parser.add_argument('config', metavar='FILE', help='config file')
     parser.add_argument('--run-dir', metavar='DIR', help='run directory')
@@ -57,7 +59,7 @@ def main() -> None:
                             device_id=int(configs.gpu[0]))
         # is_distributed = False
         # recorder = Recorder(settings, settings.save_path)
-    cuda_path = os.path.join(os.path.dirname(__file__), "torchsparse/nn/cuda")
+    cuda_path = os.path.join(os.path.dirname(__file__), "torchsparse_ms/nn/cuda")
     os.environ["MS_CUSTOM_AOT_WHITE_LIST"] = cuda_path
     # if args.run_dir is None:
     #     args.run_dir = auto_set_run_dir()
@@ -88,7 +90,7 @@ def main() -> None:
             sampler = ms.dataset.DistributedSampler(
                 num_shards=rank_size,
                 shard_id=rank,
-                shuffle=(split == 'train'),
+                shuffle=(split == 't'),
             )
             dataflow[split] = ds.GeneratorDataset(
                 dataset[split],
@@ -106,7 +108,7 @@ def main() -> None:
             dataflow[split] = ds.GeneratorDataset(
                 dataset[split],
                 column_names=['pc', 'feat', 'labels', 'pc_', 'labels_', 'inverse_map', 'file_name'],
-                shuffle=(split == 'train')
+                shuffle=(split == 't')
             )
             dataflow[split] = dataflow[split].batch(
                 batch_size=configs.batch_size,

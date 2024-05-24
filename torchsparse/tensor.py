@@ -1,6 +1,6 @@
 from typing import Any, Dict, Tuple, Union
 
-from mindspore import Tensor
+import torch
 
 from torchsparse.utils import make_ntuple
 
@@ -10,29 +10,29 @@ __all__ = ['SparseTensor', 'PointTensor']
 class SparseTensor:
 
     def __init__(self,
-                 feats: Tensor,
-                 coords: Tensor,
+                 feats: torch.Tensor,
+                 coords: torch.Tensor,
                  stride: Union[int, Tuple[int, ...]] = 1) -> None:
         self.feats = feats
         self.coords = coords
         self.stride = make_ntuple(stride, ndim=3)
-        self.cmaps: Dict[Tuple[int, ...], Tensor] = {}
+        self.cmaps: Dict[Tuple[int, ...], torch.Tensor] = {}
         self.kmaps: Dict[Tuple[Any, ...], Any] = {}
 
     @property
-    def F(self) -> Tensor:
+    def F(self) -> torch.Tensor:
         return self.feats
 
     @F.setter
-    def F(self, feats: Tensor) -> None:
+    def F(self, feats: torch.Tensor) -> None:
         self.feats = feats
 
     @property
-    def C(self) -> Tensor:
+    def C(self) -> torch.Tensor:
         return self.coords
 
     @C.setter
-    def C(self, coords: Tensor) -> None:
+    def C(self, coords: torch.Tensor) -> None:
         self.coords = coords
 
     @property

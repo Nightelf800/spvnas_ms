@@ -3,9 +3,9 @@ import os.path
 
 import numpy as np
 import mindspore as ms
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn, sparse_collate
-from torchsparse.utils.quantize import sparse_quantize
+from torchsparse_ms import SparseTensor
+from torchsparse_ms.utils.collate import sparse_collate_fn, sparse_collate
+from torchsparse_ms.utils.quantize import sparse_quantize
 from core.utils.config import configs
 
 __all__ = ['DummyKITTI']

@@ -4,9 +4,9 @@ from collections import OrderedDict, deque
 
 import torch
 import torch.nn as nn
-import torchsparse
-import torchsparse.nn as spnn
-from torchsparse import PointTensor, SparseTensor
+import torchsparse_ms
+import torchsparse_ms.nn as spnn
+from torchsparse_ms import PointTensor, SparseTensor
 
 from core.models.utils import point_to_voxel, voxel_to_point
 from core.modules.layers import (DynamicConvolutionBlock,
@@ -328,11 +328,11 @@ class SPVNAS(RandomNet):
         y1 = point_to_voxel(x4, z1)
         y1.F = self.dropout(y1.feats)
         y1 = self.upsample[0].transition(y1)
-        y1 = torchsparse.cat([y1, x3])
+        y1 = torchsparse_ms.cat([y1, x3])
         y1 = self.upsample[0].feature(y1)
 
         y2 = self.upsample[1].transition(y1)
-        y2 = torchsparse.cat([y2, x2])
+        y2 = torchsparse_ms.cat([y2, x2])
         y2 = self.upsample[1].feature(y2)
         # point transform 256 to 128
         z2 = voxel_to_point(y2, z1)
@@ -341,11 +341,11 @@ class SPVNAS(RandomNet):
         y3 = point_to_voxel(y2, z2)
         y3.F = self.dropout(y3.F)
         y3 = self.upsample[2].transition(y3)
-        y3 = torchsparse.cat([y3, x1])
+        y3 = torchsparse_ms.cat([y3, x1])
         y3 = self.upsample[2].feature(y3)
 
         y4 = self.upsample[3].transition(y3)
-        y4 = torchsparse.cat([y4, x0])
+        y4 = torchsparse_ms.cat([y4, x0])
         y4 = self.upsample[3].feature(y4)
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)

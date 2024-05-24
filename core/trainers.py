@@ -4,8 +4,8 @@ import mindspore as ms
 import mindspore.nn as nn
 
 from core.datasets.semantic_kitti import SemanticKITTIInternal
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn
+from torchsparse_ms import SparseTensor
+from torchsparse_ms.utils.collate import sparse_collate_fn
 
 # import torch
 # from torch import nn
@@ -124,8 +124,8 @@ class CustomWithLossCell(nn.Cell):
 
         output = self._backbone(input)  # 前向计算得到网络输出
 
-        # print(f"net_loss.output: {output}")
-        # print(f"net_loss.output.shape: {output.shape}, net_loss.output.dtype: {output.dtype}")
+        print(f"net_loss.output: {output}")
+        print(f"net_loss.output.shape: {output.shape}, net_loss.output.dtype: {output.dtype}")
         # print(f"net_loss.label.F.shape: {targets.shape}, net_loss.label.F.dtype: {targets.dtype}")
 
         return self._loss_fn(output, targets)  # 得到多损失值

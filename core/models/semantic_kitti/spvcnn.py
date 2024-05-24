@@ -1,7 +1,7 @@
-import torchsparse
-import torchsparse.nn as spnn
+import torchsparse_ms
+import torchsparse_ms.nn as spnn
 from torch import nn
-from torchsparse import PointTensor
+from torchsparse_ms import PointTensor
 
 from core.models.utils import initial_voxelize, point_to_voxel, voxel_to_point
 
@@ -203,11 +203,11 @@ class SPVCNN(nn.Module):
         y1 = point_to_voxel(x4, z1)
         y1.F = self.dropout(y1.F)
         y1 = self.up1[0](y1)
-        y1 = torchsparse.cat([y1, x3])
+        y1 = torchsparse_ms.cat([y1, x3])
         y1 = self.up1[1](y1)
 
         y2 = self.up2[0](y1)
-        y2 = torchsparse.cat([y2, x2])
+        y2 = torchsparse_ms.cat([y2, x2])
         y2 = self.up2[1](y2)
         z2 = voxel_to_point(y2, z1)
         z2.F = z2.F + self.point_transforms[1](z1.F)
@@ -215,11 +215,11 @@ class SPVCNN(nn.Module):
         y3 = point_to_voxel(y2, z2)
         y3.F = self.dropout(y3.F)
         y3 = self.up3[0](y3)
-        y3 = torchsparse.cat([y3, x1])
+        y3 = torchsparse_ms.cat([y3, x1])
         y3 = self.up3[1](y3)
 
         y4 = self.up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
+        y4 = torchsparse_ms.cat([y4, x0])
         y4 = self.up4[1](y4)
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)

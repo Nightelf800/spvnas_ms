@@ -42,8 +42,8 @@ def make_model():
             cr = 1.0
         model = MinkUNet(num_classes=configs.data.num_classes, cr=cr)
     elif configs.model.name == 'spvcnn':
-        from core.models.semantic_kitti import SPVCNN
         from core.models.semantic_kitti import SPVCNN_MS
+        # from core.models.semantic_kitti import SPVCNN_MS_TEST
         if 'cr' in configs.model:
             cr = configs.model.cr
         else:
@@ -68,19 +68,20 @@ def make_criterion():
         raise NotImplementedError(configs.criterion.name)
     return criterion
 
-def make_optimizer(model):
+def make_optimizer(model, dy_lr=None):
     if configs.optimizer.name == 'sgd':
         # dynamic_lr = cosine_schedule_with_warmup(configs.optimizer.lr)
         optimizer = nn.SGD(model.trainable_params(),
-                           learning_rate=configs.optimizer.lr,
+                           learning_rate=dy_lr,
                            momentum=configs.optimizer.momentum,
                            weight_decay=configs.optimizer.weight_decay,
                            nesterov=configs.optimizer.nesterov)
-    # elif configs.optimizer.name == 'adam':
-    #     optimizer = torch.optim.Adam(
-    #         model.parameters(),
-    #         lr=configs.optimizer.lr,
-    #         weight_decay=configs.optimizer.weight_decay)
+    elif configs.optimizer.name == 'adam':
+        optimizer = nn.Adam(
+            model.trainable_params(),
+            learning_rate=dy_lr,
+            weight_decay=configs.optimizer.weight_decay)
+
     # elif configs.optimizer.name == 'adamw':
     #     optimizer = torch.optim.AdamW(
     #         model.parameters(),

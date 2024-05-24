@@ -1,8 +1,8 @@
 
 import mindspore
 import mindspore.nn as nn
-import torchsparse
-import torchsparse.nn as spnn
+import torchsparse_ms
+import torchsparse_ms.nn as spnn
 
 __all__ = ['MinkUNet']
 
@@ -184,19 +184,19 @@ class MinkUNet(nn.Cell):
         x4 = self.stage4(x3)
 
         y1 = self.up1[0](x4)
-        y1 = torchsparse.cat([y1, x3])
+        y1 = torchsparse_ms.cat([y1, x3])
         y1 = self.up1[1](y1)
 
         y2 = self.up2[0](y1)
-        y2 = torchsparse.cat([y2, x2])
+        y2 = torchsparse_ms.cat([y2, x2])
         y2 = self.up2[1](y2)
 
         y3 = self.up3[0](y2)
-        y3 = torchsparse.cat([y3, x1])
+        y3 = torchsparse_ms.cat([y3, x1])
         y3 = self.up3[1](y3)
 
         y4 = self.up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
+        y4 = torchsparse_ms.cat([y4, x0])
         y4 = self.up4[1](y4)
 
         out = self.classifier(y4.F)

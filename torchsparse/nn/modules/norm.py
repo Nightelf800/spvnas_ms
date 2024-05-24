@@ -1,5 +1,5 @@
-import mindspore.nn as nn
-
+import torch
+from torch import nn
 
 from torchsparse import SparseTensor
 from torchsparse.nn.utils import fapply
@@ -8,12 +8,14 @@ __all__ = ['BatchNorm', 'GroupNorm']
 
 
 class BatchNorm(nn.BatchNorm1d):
-    def construct(self, input: SparseTensor) -> SparseTensor:
-        return fapply(input, super().construct)
+
+    def forward(self, input: SparseTensor) -> SparseTensor:
+        return fapply(input, super().forward)
 
 
 class GroupNorm(nn.GroupNorm):
-    def construct(self, input: SparseTensor) -> SparseTensor:
+
+    def forward(self, input: SparseTensor) -> SparseTensor:
         coords, feats, stride = input.coords, input.feats, input.stride
 
         batch_size = torch.max(coords[:, -1]).item() + 1

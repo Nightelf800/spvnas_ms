@@ -3,9 +3,9 @@ import os.path
 
 import numpy as np
 import mindspore as ms
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn, sparse_collate
-from torchsparse.utils.quantize import sparse_quantize
+from torchsparse_ms import SparseTensor
+from torchsparse_ms.utils.collate import sparse_collate_fn, sparse_collate
+from torchsparse_ms.utils.quantize import sparse_quantize
 from core.utils.config import configs
 
 __all__ = ['SemanticKITTI']
@@ -133,16 +133,17 @@ class SemanticKITTIInternal:
         return len(self.files)
 
     def __getitem__(self, index):
+        # print(f'read datafile: {self.files[index]}')
         with open(self.files[index], 'rb') as b:
             block_ = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
         block = np.zeros_like(block_)
 
         if 'train' in self.split:
-            # theta = np.random.uniform(0, 2 * np.pi)
-            theta = 2.1847802132874214
+            theta = np.random.uniform(0, 2 * np.pi)
+            # theta = 2.1847802132874214
             # print(f"dataloader.theta: {theta}")
-            # scale_factor = np.random.uniform(0.95, 1.05)
-            scale_factor = 1.0062435768866034
+            scale_factor = np.random.uniform(0.95, 1.05)
+            # scale_factor = 1.0062435768866034
             # print(f"scale_factor: {scale_factor}")
             rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
                                 [-np.sin(theta),

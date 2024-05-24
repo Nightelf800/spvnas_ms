@@ -1,12 +1,9 @@
 import math
 from typing import Tuple, Union
 
-import mindspore
 import numpy as np
-import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Parameter
-from mindspore.common.initializer import initializer, Uniform
+import torch
+from torch import nn
 
 from torchsparse import SparseTensor
 from torchsparse.nn import functional as F
@@ -15,7 +12,7 @@ from torchsparse.utils import make_ntuple
 __all__ = ['Conv3d']
 
 
-class Conv3d(nn.Cell):
+class Conv3d(nn.Module):
 
     def __init__(self,
                  in_channels: int,
@@ -35,19 +32,18 @@ class Conv3d(nn.Cell):
 
         self.kernel_volume = int(np.prod(self.kernel_size))
         if self.kernel_volume > 1:
-            self.kernel = Parameter(
-                ops.Zeros()((self.kernel_volume, in_channels, out_channels), mindspore.float32))
+            self.kernel = nn.Parameter(
+                torch.zeros(self.kernel_volume, in_channels, out_channels))
         else:
-            self.kernel = Parameter(ops.Zeros()((in_channels, out_channels), mindspore.float32))
+            self.kernel = nn.Parameter(torch.zeros(in_channels, out_channels))
         if bias:
-            self.bias = Parameter(ops.Zeros()(out_channels))
+            self.bias = nn.Parameter(torch.Tensor(out_channels))
         else:
-            self.bias = None
-
+            self.register_parameter('bias', None)
         self.reset_parameters()
 
     def extra_repr(self) -> str:
-        s = '{in_channels}, {out_ch annels}, kernel_size={kernel_size}'
+        s = '{in_channels}, {out_channels}, kernel_size={kernel_size}'
         if self.stride != (1,) * len(self.stride):
             s += ', stride={stride}'
         if self.dilation != 1:
@@ -62,22 +58,11 @@ class Conv3d(nn.Cell):
         std = 1 / math.sqrt(
             (self.out_channels if self.transposed else self.in_channels)
             * self.kernel_volume)
-        # self.kernel = initializer(Uniform(std),
-        #                           [self.kernel_volume, self.in_channels, self.out_channels],
-        #                           mindspore.float32)
-        self.kernel = initializer(Uniform(std),
-                                  self.kernel.shape,
-                                  mindspore.float32)
-        # kernel_np = np.load('./torchsparse/nn/modules/kernel_torch.npy')
-        # self.kernel = mindspore.Tensor(Parameter(kernel_np), dtype=mindspore.float32)
-        # print(f"initialize.conv3d.weight: {self.kernel}")
-        # print(f"initialize.conv3d.weight.shape: {self.kernel.shape}")
+        self.kernel.data.uniform_(-std, std)
         if self.bias is not None:
-            self.bias = initializer(Uniform(std),
-                                  [self.out_channels],
-                                  mindspore.float32)
+            self.bias.data.uniform_(-std, std)
 
-    def construct(self, input: SparseTensor) -> SparseTensor:
+    def forward(self, input: SparseTensor) -> SparseTensor:
         return F.conv3d(input,
                         self.kernel,
                         kernel_size=self.kernel_size,

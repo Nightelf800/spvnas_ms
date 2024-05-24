@@ -1,7 +1,7 @@
 from typing import Tuple, Union
 
 import numpy as np
-import mindspore as ms
+import torch
 
 from torchsparse.utils import make_ntuple
 
@@ -10,7 +10,8 @@ __all__ = ['get_kernel_offsets']
 
 def get_kernel_offsets(size: Union[int, Tuple[int, ...]],
                        stride: Union[int, Tuple[int, ...]] = 1,
-                       dilation: Union[int, Tuple[int, ...]] = 1) -> ms.Tensor:
+                       dilation: Union[int, Tuple[int, ...]] = 1,
+                       device: str = 'cpu') -> torch.Tensor:
     size = make_ntuple(size, ndim=3)
     stride = make_ntuple(stride, ndim=3)
     dilation = make_ntuple(dilation, ndim=3)
@@ -27,5 +28,5 @@ def get_kernel_offsets(size: Union[int, Tuple[int, ...]],
         offsets = [[x, y, z] for x in offsets[0] for y in offsets[1]
                    for z in offsets[2]]
 
-    offsets = ms.Tensor(offsets, dtype=ms.int32)
+    offsets = torch.tensor(offsets, dtype=torch.int, device=device)
     return offsets

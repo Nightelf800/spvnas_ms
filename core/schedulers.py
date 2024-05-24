@@ -1,6 +1,5 @@
 import numpy as np
 # import torchpack.distributed as dist
-from core.utils.config import configs
 from mindspore.communication import get_group_size
 
 __all__ = ['cosine_schedule_with_warmup']
@@ -22,16 +21,18 @@ __all__ = ['cosine_schedule_with_warmup']
 #         return 0.5 * (1 + np.cos(np.pi * ratio))
 
 
-def cosine_schedule_with_warmup(base_lr):
+def cosine_schedule_with_warmup(configs):
     num_epochs = configs.num_epochs
     batch_size = configs.batch_size
+    base_lr = configs.optimizer.lr
     dataset_size = configs.data.training_size
 
-    batch_size *= get_group_size()
-    if get_group_size() == 1:
-        warmup_iters = 0
-    else:
-        warmup_iters = 1000 // get_group_size()
+    # batch_size *= get_group_size()
+    # if get_group_size() == 1:
+    #     warmup_iters = 0
+    # else:
+    #     warmup_iters = 1000 // get_group_size()
+    warmup_iters = 0
 
     iter_per_epoch = (dataset_size + batch_size - 1) // batch_size
     total_iters = num_epochs * iter_per_epoch

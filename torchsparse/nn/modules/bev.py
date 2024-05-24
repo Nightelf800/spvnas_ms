@@ -2,7 +2,7 @@ import math
 from typing import List, Tuple, Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from torchsparse import SparseTensor
 
@@ -26,7 +26,7 @@ class ToBEVReduction(nn.Module):
 
         coords = coords.clone()
         coords[:, self.dim] = 0
-        feats = torch.cat([torch.ones_like(feats[:, :1]), feats], dim=1)
+        feats = torch.cat([torch.ones_like(feats[:, :1]), feats], axis=1)
         tensor = torch.sparse_coo_tensor(coords.t().long(), feats).to_dense()
         coords = tensor.indices().t().int()
         feats = tensor.values()[:, 1:] / tensor.values()[:, :1]

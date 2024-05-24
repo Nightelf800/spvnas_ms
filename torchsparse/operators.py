@@ -1,13 +1,14 @@
 from typing import List
-# import torch
-import mindspore as ms
+
+import torch
+
 from torchsparse.tensor import SparseTensor
 
 __all__ = ['cat']
 
 
 def cat(inputs: List[SparseTensor]) -> SparseTensor:
-    feats = ms.ops.concat([input.feats for input in inputs], axis=1)
+    feats = torch.cat([input.feats for input in inputs], dim=1)
     output = SparseTensor(coords=inputs[0].coords,
                           feats=feats,
                           stride=inputs[0].stride)

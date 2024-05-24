@@ -10,8 +10,8 @@ train:
 dataset:
   name: semantic_kitti
   # dataset path
-  # root: /home/nightelf/桌面/datasets/semantic-kitti
-  root: /data2/mqh/code/spvnas_ms/datasets/semantickitti/sequences
+  # root: /home/share/semantickitti/sequences/
+  root: ./datasets/semantickitti/sequences/
   num_points: 80000
   voxel_size: 0.05
 
