@@ -82,17 +82,6 @@ class SPConvolutionForward(Cell):
             reg_info=conv_backward_cuda_info)
 
         def bprop(in_feat, out_feat, kernel, neighbor_map, neighbor_offset, transpose, out, grad_output):
-            # print("-----------bprop conv3d-------------")
-            # print(f'in_feat: {in_feat}')
-            # print(f'in_feat.shape: {in_feat.shape}')
-            # print(f'out_feat: {out_feat}')
-            # print(f'kernel: {kernel}')
-            # print(f'neighbor_map: {neighbor_map}')
-            # print(f'neighbor_offset: {neighbor_offset}')
-            # print(f'transpose: {transpose}')
-            # print(f'out: {out}')
-            # print(f'grad_output: {grad_output}')
-            # print(f'grad_output.shape: {grad_output.shape}')
 
             grad_input = ops.ZerosLike()(in_feat)
             grad_weight = ops.ZerosLike()(kernel)
